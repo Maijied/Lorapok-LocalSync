@@ -279,6 +279,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
   },
   headerActions: {
     display: 'flex',
@@ -299,13 +301,14 @@ const styles = {
   avatarCircle: {
     width: '40px',
     height: '40px',
-    borderRadius: '50%',
-    backgroundColor: 'var(--bg-surface)',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(255,255,255,0.03)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    border: '2px solid var(--primary-color)',
+    border: '1px solid var(--primary-color)',
+    boxShadow: '0 0 10px rgba(0, 243, 255, 0.2)',
   },
   avatarImg: {
     width: '100%',
