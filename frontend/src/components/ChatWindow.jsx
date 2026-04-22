@@ -151,7 +151,6 @@ export default function ChatWindow({ selectedUser, onBack }) {
     );
   }
 
-  const { startCall } = useCall(); // Need to import this at the top
 
   return (
     <div style={styles.container}>
