@@ -26,12 +26,12 @@ Lorapok LocalSync is a high-performance, privacy-focused communication platform 
 ### Windows
 1. Double-click **`install.bat`**
 2. Wait for the success message.
-3. Run `npm run dev` to start.
+3. Choose **`y`** to start the app instantly!
 
 ### Linux & macOS
 1. Open terminal in the project folder.
-2. Run `bash install.sh`
-3. Run `npm run dev` to start.
+2. Run **`bash install.sh`**
+3. Choose **`y`** to start the app instantly!
 
 ## 📖 How to Use
 
