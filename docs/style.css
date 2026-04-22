@@ -1,10 +1,13 @@
 :root {
-    --bg: #050505; /* Midnight Black */
-    --primary: #00f3ff; /* Neon Cyan */
-    --secondary: #bc13fe; /* Electric Purple */
+    --brand-cyan: #00f3ff;
+    --brand-purple: #bc13fe;
+    --brand-midnight: #050510;
+    
+    --primary: var(--brand-cyan);
+    --secondary: var(--brand-purple);
+    --bg: var(--brand-midnight);
     --text: #ffffff;
-    --accent: rgba(255, 255, 255, 0.03);
-    --border: rgba(255, 255, 255, 0.08);
+    --border: rgba(255, 255, 255, 0.1);
 }
 
 * {
@@ -14,10 +17,13 @@
 }
 
 body {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', 'Outfit', sans-serif;
     background-color: var(--bg);
+    background-image: 
+        radial-gradient(circle at 0% 0%, rgba(0, 243, 255, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 100% 100%, rgba(188, 19, 254, 0.05) 0%, transparent 50%);
     color: var(--text);
-    line-height: 1.6;
+    line-height: 1.5;
     overflow-x: hidden;
 }
 
@@ -25,15 +31,15 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 30px 10%;
+    padding: 2.5rem 10%;
     position: absolute;
     width: 100%;
-    z-index: 10;
+    z-index: 50;
 }
 
 .logo {
     font-size: 1.5rem;
-    font-weight: 800;
+    font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 2px;
 }
@@ -45,18 +51,25 @@ nav {
 .links a {
     text-decoration: none;
     color: var(--text);
-    margin-left: 30px;
-    font-weight: 600;
+    margin-left: 2rem;
+    font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.9rem;
-    letter-spacing: 1px;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.links a:hover {
+    opacity: 1;
 }
 
 .btn-git {
     background: var(--primary);
     color: #000 !important;
-    padding: 10px 24px;
-    border-radius: 4px;
+    padding: 0.8rem 1.5rem;
+    border-radius: 0;
+    font-weight: 900;
     box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
 }
 
@@ -66,123 +79,131 @@ header {
     align-items: center;
     justify-content: center;
     text-align: center;
-    background: radial-gradient(circle at 0% 0%, rgba(188, 19, 254, 0.1) 0%, transparent 40%),
-                radial-gradient(circle at 100% 100%, rgba(0, 243, 255, 0.1) 0%, transparent 40%);
     position: relative;
+    padding: 0 5%;
 }
 
 .hero {
-    max-width: 900px;
-    padding: 20px;
+    max-width: 1200px;
 }
 
 .hero h1 {
-    font-size: 5rem;
-    font-weight: 800;
-    line-height: 1;
-    margin-bottom: 24px;
+    font-size: 6rem;
+    font-weight: 900;
+    line-height: 0.9;
+    margin-bottom: 1.5rem;
     text-transform: uppercase;
-    letter-spacing: -2px;
+    letter-spacing: -0.05em;
+    background: linear-gradient(to bottom, #ffffff 70%, rgba(255, 255, 255, 0.5));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .hero h1 span {
-    color: var(--primary);
     display: block;
-    font-size: 6rem;
-    text-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
+    color: var(--primary);
+    font-size: 8rem;
+    -webkit-text-fill-color: var(--primary);
+    text-shadow: 0 0 40px rgba(0, 243, 255, 0.4);
 }
 
 .hero p {
     font-size: 1.25rem;
-    opacity: 0.7;
-    margin-bottom: 48px;
-    max-width: 600px;
+    opacity: 0.6;
+    margin-bottom: 3rem;
+    max-width: 700px;
     margin-left: auto;
     margin-right: auto;
+    font-weight: 500;
 }
 
 .hero-btns {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 1.5rem;
 }
 
 .btn-primary {
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    color: #000;
-    padding: 18px 48px;
-    border-radius: 4px;
+    background-color: var(--primary);
+    color: #050510;
+    padding: 1.2rem 3rem;
+    border-radius: 0;
     text-decoration: none;
-    font-weight: 800;
+    font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 1px;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
 }
 
 .btn-secondary {
-    border: 1px solid var(--primary);
-    color: var(--primary);
-    padding: 18px 48px;
-    border-radius: 4px;
+    background-color: var(--secondary);
+    color: #ffffff;
+    padding: 1.2rem 3rem;
+    border-radius: 0;
     text-decoration: none;
-    font-weight: 800;
+    font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 1px;
-    transition: all 0.3s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 20px rgba(188, 19, 254, 0.3);
 }
 
-.btn-primary:hover {
-    transform: translateY(-5px) scale(1.02);
-    box-shadow: 0 0 40px rgba(0, 243, 255, 0.6);
+.btn-primary:hover, .btn-secondary:hover {
+    background-color: #ffffff;
+    color: #000000;
+    transform: scale(1.05);
+    box-shadow: 0 0 35px rgba(255, 255, 255, 0.4);
 }
 
 .features {
     display: flex;
     justify-content: center;
-    gap: 24px;
-    padding: 120px 10%;
-    background: #000;
+    gap: 1.5rem;
+    padding: 100px 10%;
+    background: #000000;
 }
 
 .card {
-    background: var(--accent);
-    padding: 60px 40px;
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 4rem 2rem;
+    border-radius: 0;
     flex: 1;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid var(--border);
     text-align: center;
 }
 
 .card:hover {
-    border-color: var(--primary);
-    background: rgba(0, 243, 255, 0.02);
-    transform: translateY(-10px);
+    border-color: rgba(0, 243, 255, 0.5);
+    transform: translateY(-8px);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .icon {
-    font-size: 3.5rem;
-    margin-bottom: 30px;
+    font-size: 4rem;
+    margin-bottom: 2rem;
     display: block;
 }
 
 .card h3 {
     text-transform: uppercase;
     letter-spacing: 2px;
-    margin-bottom: 16px;
+    margin-bottom: 1rem;
+    font-weight: 900;
     color: var(--primary);
 }
 
 .usage {
-    padding: 120px 10%;
+    padding: 150px 10%;
     text-align: center;
-    background: #050505;
+    background: var(--bg);
 }
 
 .usage h2 {
-    font-size: 3.5rem;
-    margin-bottom: 80px;
+    font-size: 4rem;
+    font-weight: 900;
+    margin-bottom: 6rem;
     text-transform: uppercase;
     letter-spacing: -1px;
 }
@@ -193,15 +214,16 @@ header {
 
 .steps {
     display: flex;
-    gap: 32px;
+    gap: 2rem;
 }
 
 .step {
     flex: 1;
-    padding: 40px;
-    background: var(--accent);
+    padding: 3rem;
+    background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 0;
+    text-align: left;
 }
 
 .step-num {
@@ -211,29 +233,37 @@ header {
     background: transparent;
     border: 2px solid var(--primary);
     color: var(--primary);
-    border-radius: 4px;
+    border-radius: 0;
     line-height: 56px;
-    font-weight: 800;
-    margin-bottom: 30px;
+    font-weight: 900;
+    margin-bottom: 2rem;
     font-size: 1.5rem;
+    text-align: center;
 }
 
 .step h4 {
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 12px;
+    margin-bottom: 1rem;
+    font-weight: 900;
 }
 
 footer {
-    padding: 80px;
+    padding: 100px 10%;
     text-align: center;
-    background: #000;
+    background: #000000;
     border-top: 1px solid var(--border);
-    color: var(--text-muted);
-    font-weight: 600;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.8rem;
-    letter-spacing: 2px;
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+}
+
+@media (max-width: 1024px) {
+    .hero h1 { font-size: 4rem; }
+    .hero h1 span { font-size: 5rem; }
+    .features, .steps { flex-direction: column; }
 }
 
 @media (max-width: 768px) {
