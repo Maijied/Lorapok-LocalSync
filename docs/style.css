@@ -1,0 +1,183 @@
+:root {
+    --bg: #0f172a;
+    --primary: #6366f1;
+    --text: #f8fafc;
+    --accent: #1e293b;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Outfit', sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30px 10%;
+    position: absolute;
+    width: 100%;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.logo span {
+    color: var(--primary);
+}
+
+.links a {
+    text-decoration: none;
+    color: var(--text);
+    margin-left: 30px;
+    font-weight: 500;
+}
+
+.btn-git {
+    background: var(--primary);
+    padding: 8px 20px;
+    border-radius: 50px;
+}
+
+header {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+}
+
+.hero {
+    max-width: 800px;
+    padding: 20px;
+}
+
+.hero h1 {
+    font-size: 4rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 20px;
+}
+
+.hero h1 span {
+    color: var(--primary);
+}
+
+.hero p {
+    font-size: 1.25rem;
+    opacity: 0.8;
+    margin-bottom: 40px;
+}
+
+.hero-btns {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    padding: 15px 40px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: transform 0.2s;
+}
+
+.btn-secondary {
+    border: 1px solid var(--primary);
+    color: white;
+    padding: 15px 40px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    transform: translateY(-5px);
+}
+
+.features {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    padding: 100px 10%;
+    background: #0b1120;
+}
+
+.card {
+    background: var(--accent);
+    padding: 40px;
+    border-radius: 20px;
+    flex: 1;
+    transition: 0.3s;
+}
+
+.card:hover {
+    background: #243147;
+}
+
+.icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
+
+.usage {
+    padding: 100px 10%;
+    text-align: center;
+}
+
+.usage h2 {
+    font-size: 3rem;
+    margin-bottom: 60px;
+}
+
+.usage span {
+    color: var(--primary);
+}
+
+.steps {
+    display: flex;
+    gap: 40px;
+}
+
+.step {
+    flex: 1;
+}
+
+.step-num {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    background: var(--primary);
+    border-radius: 50%;
+    line-height: 50px;
+    font-weight: 800;
+    margin-bottom: 20px;
+}
+
+footer {
+    padding: 50px;
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+    .hero h1 { font-size: 2.5rem; }
+    .features, .steps { flex-direction: column; }
+    .hero-btns { flex-direction: column; }
+}

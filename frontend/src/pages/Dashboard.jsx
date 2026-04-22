@@ -5,6 +5,7 @@ import { getGroups, saveGroup } from '../utils/db';
 import ChatWindow from '../components/ChatWindow';
 import GroupChatWindow from '../components/GroupChatWindow';
 import { v4 as uuidv4 } from 'uuid';
+import { LogOut, HelpCircle, Key, Users, Info, ArrowRight } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const [publicGroups, setPublicGroups] = useState([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [isJoiningWithKey, setIsJoiningWithKey] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [joinKey, setJoinKey] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -102,9 +104,44 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container" style={styles.container}>
+      {showHelp && (
+        <div style={styles.modalOverlay} onClick={() => setShowHelp(false)}>
+          <div className="glass-panel" style={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 style={{color: 'var(--primary-color)', marginBottom: '20px'}}>How to Use Lorapok</h2>
+            <div style={styles.helpGrid}>
+              <div style={styles.helpItem}>
+                <Key size={24} color="var(--primary-color)" />
+                <div>
+                  <h4>Secret Keys</h4>
+                  <p>Every group has a 6-digit key in the header. Use the <strong>Key</strong> button in the sidebar to join groups instantly.</p>
+                </div>
+              </div>
+              <div style={styles.helpItem}>
+                <Users size={24} color="var(--primary-color)" />
+                <div>
+                  <h4>Group Invites</h4>
+                  <p>In a private chat, click the <strong>Invite</strong> icon to send a direct group invitation to your contact.</p>
+                </div>
+              </div>
+              <div style={styles.helpItem}>
+                <Info size={24} color="var(--primary-color)" />
+                <div>
+                  <h4>Mobile Connection</h4>
+                  <p>To connect your phone, ensure it is on the same Wi-Fi and enter your PC's IP address followed by the port (e.g., <strong>http://192.168.0.219:5173</strong>).</p>
+                </div>
+              </div>
+            </div>
+            <button className="btn-primary" style={{width: '100%', marginTop: '20px'}} onClick={() => setShowHelp(false)}>Got it!</button>
+          </div>
+        </div>
+      )}
+
       <div className={`glass-panel sidebar ${selectedUser || selectedGroup ? 'hidden-mobile' : ''}`} style={styles.sidebar}>
         <div style={styles.header}>
-          <h2>Chats</h2>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <h2 style={{margin: 0}}>Chats</h2>
+            <HelpCircle size={20} style={{cursor: 'pointer', opacity: 0.7}} onClick={() => setShowHelp(true)} />
+          </div>
         </div>
         
         <div style={styles.userList}>
@@ -392,5 +429,33 @@ const styles = {
   emptyState: {
     textAlign: 'center',
     color: 'var(--text-muted)',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+  },
+  modal: {
+    maxWidth: '500px',
+    width: '100%',
+    padding: '40px',
+  },
+  helpGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  helpItem: {
+    display: 'flex',
+    gap: '16px',
+    alignItems: 'flex-start',
   }
 };
