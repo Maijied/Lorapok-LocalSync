@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, User, Camera } from 'lucide-react';
 
@@ -8,8 +9,21 @@ const AVATARS = Array.from({ length: 60 }, (_, i) => {
 });
 
 export default function Login() {
-  const { register, unlock, isRegistered, user } = useAuth();
+  const { register, unlock, isRegistered, isUnlocked, user } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState(isRegistered ? 'unlock' : 'register');
+
+  useEffect(() => {
+    if (isUnlocked) {
+      navigate('/');
+    }
+  }, [isUnlocked, navigate]);
+
+  useEffect(() => {
+    if (isRegistered) {
+      setMode('unlock');
+    }
+  }, [isRegistered]);
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [selectedDp, setSelectedDp] = useState(AVATARS[0]);
