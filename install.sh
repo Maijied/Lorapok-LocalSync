@@ -36,8 +36,14 @@ echo "=========================================="
 echo "   INSTALLATION COMPLETE!"
 echo "=========================================="
 echo ""
-echo "To start the system, run:"
-echo "npm run dev"
-echo ""
-echo "Then open: http://localhost:5173"
+read -p "Do you want to start Lorapok LocalSync now? (y/n): " choice
+if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
+    echo "Starting the app..."
+    npm run dev
+else
+    echo ""
+    echo "To start later, run: npm run dev"
+    echo ""
+    echo "Then open: http://localhost:5173"
+fi
 echo "=========================================="

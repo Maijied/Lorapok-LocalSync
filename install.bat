@@ -35,9 +35,13 @@ echo ==========================================
 echo    INSTALLATION COMPLETE!
 echo ==========================================
 echo.
-echo To start the system, run: npm run dev
-echo Then open: http://localhost:5173
-echo.
-echo To connect your phone, use your Local IP address.
-echo ==========================================
-pause
+set /p START_APP="Do you want to start Lorapok LocalSync now? (y/n): "
+if /i "%START_APP%"=="y" (
+    echo Starting the app...
+    npm run dev
+) else (
+    echo.
+    echo To start later, run: npm run dev
+    echo Then open: http://localhost:5173
+    pause
+)
