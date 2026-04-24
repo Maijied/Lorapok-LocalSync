@@ -46,8 +46,7 @@ function createWindow() {
   const isDev = !app.isPackaged;
 
   if (isDev) {
-    app.commandLine.appendSwitch('ignore-certificate-errors');
-    mainWindow.loadURL('https://localhost:5173');
+    mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
     // In production, use absolute path from app root

@@ -115,16 +115,22 @@ export default function Login() {
           <p>Secure encrypted communication for your local network</p>
         </div>
         
-        <div style={styles.registerSplit}>
+        <div style={styles.registerForm}>
           <div style={styles.avatarSection}>
-            <h3>Choose your Anime DP</h3>
-            <div className="avatar-grid" style={styles.avatarGrid}>
+            <div style={styles.selectedPreview}>
+               <img src={selectedDp} alt="selected" style={styles.dpPreview} />
+            </div>
+            <p style={{...styles.subtitleText, margin: '20px 0 10px 0', fontSize: '0.8rem'}}>Swipe to Choose Avatar</p>
+            <div className="hide-scrollbar" style={styles.avatarStrip}>
               {AVATARS.map((src) => (
                 <div 
                   key={src} 
                   style={{
-                    ...styles.avatarItem,
-                    border: selectedDp === src ? '2px solid var(--primary-color)' : '1px solid var(--glass-border)'
+                    ...styles.avatarStripItem,
+                    opacity: selectedDp === src ? 1 : 0.4,
+                    transform: selectedDp === src ? 'scale(1.1)' : 'scale(0.95)',
+                    border: selectedDp === src ? '2px solid var(--primary-color)' : '2px solid transparent',
+                    boxShadow: selectedDp === src ? '0 0 15px rgba(0, 243, 255, 0.4)' : 'none'
                   }}
                   onClick={() => setSelectedDp(src)}
                 >
@@ -134,11 +140,7 @@ export default function Login() {
             </div>
           </div>
 
-          <form onSubmit={handleRegister} style={styles.formSplit}>
-            <div style={styles.selectedPreview}>
-               <img src={selectedDp} alt="selected" style={styles.dpPreview} />
-            </div>
-            
+          <form onSubmit={handleRegister} style={styles.formCenter}>
             <div style={styles.inputGroup}>
               <label>Display Name</label>
               <input
@@ -152,20 +154,22 @@ export default function Login() {
 
             <div style={styles.inputGroup}>
               <label>Set 4-Digit PIN</label>
-              <input
-                type="password"
-                className="input-field"
-                placeholder="0000"
-                maxLength={4}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                style={styles.pinInput}
-              />
+              <div style={styles.pinWrapper}>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="••••"
+                  maxLength={4}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                  style={styles.pinInput}
+                />
+              </div>
             </div>
 
             {error && <p style={styles.error}>{error}</p>}
             
-            <button type="submit" className="btn-primary" style={styles.button}>
+            <button type="submit" className="btn-primary" style={{...styles.button, marginTop: '20px'}}>
               Create Account
             </button>
           </form>
@@ -177,12 +181,14 @@ export default function Login() {
 
 const styles = {
   container: {
-    height: '100vh',
+    minHeight: '100vh',
+    height: '100%',
+    overflowY: 'auto',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     background: 'var(--bg-dark)',
-    padding: '20px',
+    padding: '40px 20px',
   },
   card: {
     width: '100%',
@@ -196,7 +202,7 @@ const styles = {
   },
   cardWide: {
     width: '100%',
-    maxWidth: '900px',
+    maxWidth: '500px',
     padding: '40px',
     background: 'linear-gradient(145deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.95) 100%)',
     border: '1px solid rgba(255, 255, 255, 0.05)',
@@ -279,46 +285,50 @@ const styles = {
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
-  registerSplit: {
+  registerForm: {
     display: 'flex',
-    flexWrap: 'wrap',
-    gap: '24px',
+    flexDirection: 'column',
+    gap: '32px',
     marginTop: '20px',
   },
   avatarSection: {
-    flex: '1 1 300px',
-    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '100%',
   },
-  avatarGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
-    gap: '10px',
-    maxHeight: '400px',
-    overflowY: 'auto',
-    padding: '15px',
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    borderRadius: '4px',
-    marginTop: '10px',
-    border: '1px solid var(--glass-border)',
+  avatarStrip: {
+    display: 'flex',
+    overflowX: 'auto',
+    gap: '16px',
+    width: '100%',
+    padding: '20px 10px',
+    scrollSnapType: 'x mandatory',
+    WebkitOverflowScrolling: 'touch',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: '16px',
+    border: '1px solid rgba(255,255,255,0.02)',
   },
-  avatarItem: {
-    width: '60px',
+  avatarStripItem: {
+    flex: '0 0 60px',
     height: '60px',
-    borderRadius: '4px',
+    borderRadius: '50%',
     cursor: 'pointer',
     overflow: 'hidden',
-    transition: 'all 0.2s',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    scrollSnapAlign: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   avatarImg: {
     width: '100%',
     height: '100%',
+    objectFit: 'cover',
   },
-  formSplit: {
-    flex: '1 1 250px',
-    minWidth: '200px',
+  formCenter: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px',
+    gap: '24px',
+    width: '100%',
   },
   selectedPreview: {
     width: '130px',

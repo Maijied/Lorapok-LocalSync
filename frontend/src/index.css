@@ -114,6 +114,14 @@ input, button {
   background: var(--primary-color);
 }
 
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Responsive Layout */
 @media (max-width: 768px) {
   .dashboard-container {
