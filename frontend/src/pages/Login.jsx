@@ -92,6 +92,7 @@ export default function Login() {
     <div style={styles.container}>
       <div className="glass-panel" style={styles.cardWide}>
         <div style={styles.header}>
+          <img src="/logo.png" alt="Lorapok Logo" style={styles.logo} />
           <h1>Lorapok Communicator</h1>
           <p>Secure encrypted communication for your local network</p>
         </div>
@@ -183,6 +184,12 @@ const styles = {
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: '4px',
+  },
+  logo: {
+    width: '80px',
+    height: '80px',
+    marginBottom: '20px',
+    objectFit: 'contain',
   },
   dpLarge: {
     width: '100px',

@@ -1,4 +1,4 @@
-const setupSocket = (io, database, messageQueue) => {
+const setupSocket = (io, database, messageQueue, encryptionManager) => {
   // Store connected users (socketId -> userData)
   const connectedUsers = new Map(); // socketId -> userData
   const userSocketMap = new Map(); // userId -> socketId (for quick lookup)
@@ -18,8 +18,8 @@ const setupSocket = (io, database, messageQueue) => {
       // Save/update user in database
       if (database) {
         try {
-          // For now, store a hash of the PIN (in real app, would be hashed on client)
-          await database.saveUser(userData.id, userData.name, userData.pin || 'default', userData.dp);
+          const pinHash = encryptionManager ? encryptionManager.hashPIN(userData.pin || 'default') : (userData.pin || 'default');
+          await database.saveUser(userData.id, userData.name, pinHash, userData.dp);
           await database.updateLastSeen(userData.id);
         } catch (error) {
           console.error('Error saving user to database:', error);
@@ -84,6 +84,63 @@ const setupSocket = (io, database, messageQueue) => {
         if (messageQueue) {
           await messageQueue.queueForOfflineDelivery(data, data.to);
         }
+      }
+    });
+
+    // Typing Indicators
+    socket.on('typing_start', (data) => {
+      // data: { to: recipientId, groupId: groupId }
+      if (data.groupId) {
+        socket.to(data.groupId).emit('typing_start', {
+          userId: connectedUsers.get(socket.id)?.id,
+          groupId: data.groupId
+        });
+      } else if (data.to) {
+        const recipientSocketId = userSocketMap.get(data.to);
+        if (recipientSocketId) {
+          io.to(recipientSocketId).emit('typing_start', {
+            userId: connectedUsers.get(socket.id)?.id
+          });
+        }
+      }
+    });
+
+    socket.on('typing_stop', (data) => {
+      // data: { to: recipientId, groupId: groupId }
+      if (data.groupId) {
+        socket.to(data.groupId).emit('typing_stop', {
+          userId: connectedUsers.get(socket.id)?.id,
+          groupId: data.groupId
+        });
+      } else if (data.to) {
+        const recipientSocketId = userSocketMap.get(data.to);
+        if (recipientSocketId) {
+          io.to(recipientSocketId).emit('typing_stop', {
+            userId: connectedUsers.get(socket.id)?.id
+          });
+        }
+      }
+    });
+
+    // Read Receipts
+    socket.on('message_read', async (data) => {
+      // data: { messageId: id, from: senderId }
+      if (database) {
+        try {
+          await database.updateMessageStatus(data.messageId, 'seen');
+          await database.updateReadStatus(data.messageId, connectedUsers.get(socket.id)?.id);
+        } catch (error) {
+          console.error('Error updating read status:', error);
+        }
+      }
+
+      // Notify the original sender
+      const senderSocketId = userSocketMap.get(data.from);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('message_status_update', {
+          messageId: data.messageId,
+          status: 'seen'
+        });
       }
     });
 

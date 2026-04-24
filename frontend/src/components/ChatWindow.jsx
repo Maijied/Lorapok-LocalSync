@@ -3,9 +3,11 @@ import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { getMessagesByChatId, saveMessage } from '../utils/db';
-import { Send, Paperclip, Phone, Video, ArrowLeft, UserPlus } from 'lucide-react';
+import { Send, Paperclip, Phone, Video, ArrowLeft, UserPlus, Check, CheckCheck } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { getGroups } from '../utils/db';
+import TypingIndicator from './TypingIndicator';
+import MediaViewer from './MediaViewer';
 
 export default function ChatWindow({ selectedUser, onBack }) {
   const { user } = useAuth();
@@ -15,8 +17,12 @@ export default function ChatWindow({ selectedUser, onBack }) {
   const [inputText, setInputText] = useState('');
   const [showInviteMenu, setShowInviteMenu] = useState(false);
   const [myGroups, setMyGroups] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!selectedUser || !socket) return;
@@ -61,6 +67,31 @@ export default function ChatWindow({ selectedUser, onBack }) {
        }
     };
     socket.on('group_invite', handleInvite);
+    const handleTypingStart = (data) => {
+      if (data.userId === selectedUser.id) setIsTyping(true);
+      scrollToBottom();
+    };
+
+    const handleTypingStop = (data) => {
+      if (data.userId === selectedUser.id) setIsTyping(false);
+    };
+
+    const handleMessageStatus = (data) => {
+      setMessages(prev => prev.map(m => 
+        m.id === data.messageId ? { ...m, status: data.status } : m
+      ));
+    };
+
+    socket.on('typing_start', handleTypingStart);
+    socket.on('typing_stop', handleTypingStop);
+    socket.on('message_status_update', handleMessageStatus);
+
+    // Send read receipts for unseen messages
+    messages.forEach(msg => {
+      if (msg.from === selectedUser.id && msg.status !== 'seen') {
+        socket.emit('message_read', { messageId: msg.id, from: msg.from });
+      }
+    });
 
     // Load my groups for invitation menu
     getGroups().then(setMyGroups);
@@ -68,6 +99,9 @@ export default function ChatWindow({ selectedUser, onBack }) {
     return () => {
       socket.off('private_message', handlePrivateMessage);
       socket.off('group_invite', handleInvite);
+      socket.off('typing_start', handleTypingStart);
+      socket.off('typing_stop', handleTypingStop);
+      socket.off('message_status_update', handleMessageStatus);
     };
   }, [selectedUser, socket, user.id]);
 
@@ -89,6 +123,7 @@ export default function ChatWindow({ selectedUser, onBack }) {
       to: selectedUser.id,
       text: inputText,
       type: 'text',
+      status: 'sent',
       timestamp: Date.now(),
     };
 
@@ -96,37 +131,90 @@ export default function ChatWindow({ selectedUser, onBack }) {
     await saveMessage(newMsg);
     socket.emit('private_message', newMsg);
     
+    
     setInputText('');
+    socket.emit('typing_stop', { to: selectedUser.id });
     scrollToBottom();
   };
 
-  const handleFileUpload = (e) => {
+  const handleInputChange = (e) => {
+    setInputText(e.target.value);
+    
+    // Typing indicator logic
+    socket.emit('typing_start', { to: selectedUser.id });
+    
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('typing_stop', { to: selectedUser.id });
+    }, 2000);
+  };
+
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64Data = event.target.result;
-      const chatId = [user.id, selectedUser.id].sort().join('_');
+    // Use FormData for file upload to backend
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    setUploadProgress(1); // Start progress
+    
+    try {
+      // In a real app we'd use axios for progress tracking, but fetch works for simple upload
+      const response = await fetch('http://localhost:4000/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
       
-      const newMsg = {
-        id: uuidv4(),
-        chatId,
-        from: user.id,
-        to: selectedUser.id,
-        text: file.name,
-        fileData: base64Data,
-        type: file.type.startsWith('image/') ? 'image' : 'file',
-        timestamp: Date.now(),
-      };
+      const data = await response.json();
+      setUploadProgress(0); // Reset progress
+      
+      if (data.url) {
+        const chatId = [user.id, selectedUser.id].sort().join('_');
+        
+        let type = 'file';
+        if (file.type.startsWith('image/')) type = 'image';
+        else if (file.type.startsWith('video/')) type = 'video';
+        
+        // Use full URL to backend for the file
+        const fullUrl = `http://localhost:4000${data.url}`;
+        
+        const newMsg = {
+          id: uuidv4(),
+          chatId,
+          from: user.id,
+          to: selectedUser.id,
+          text: data.filename,
+          fileData: fullUrl,
+          type: type,
+          status: 'sent',
+          timestamp: Date.now(),
+        };
 
-      setMessages(prev => [...prev, newMsg]);
-      await saveMessage(newMsg);
-      socket.emit('private_message', newMsg);
-      scrollToBottom();
-    };
-    reader.readAsDataURL(file);
+        setMessages(prev => [...prev, newMsg]);
+        await saveMessage(newMsg);
+        socket.emit('private_message', newMsg);
+        scrollToBottom();
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setUploadProgress(0);
+    }
+    
     e.target.value = null; // reset
+  };
+
+  const renderMessageTextWithLinks = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.split(urlRegex).map((part, index) => {
+      if (part.match(urlRegex)) {
+        return <a key={index} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline' }}>{part}</a>;
+      }
+      return part;
+    });
   };
 
   const sendInvite = (group) => {
@@ -205,8 +293,12 @@ export default function ChatWindow({ selectedUser, onBack }) {
                 borderBottomLeftRadius: isMine ? '16px' : '4px',
               }}>
                 {msg.type === 'image' ? (
-                  <div>
+                  <div onClick={() => setSelectedMedia({ url: msg.fileData, name: msg.text, type: 'image' })} style={{cursor: 'pointer'}}>
                     <img src={msg.fileData} alt="attachment" style={styles.imageAttachment} />
+                  </div>
+                ) : msg.type === 'video' ? (
+                  <div onClick={() => setSelectedMedia({ url: msg.fileData, name: msg.text, type: 'video' })} style={{cursor: 'pointer'}}>
+                    <video src={msg.fileData} style={styles.imageAttachment} />
                   </div>
                 ) : msg.type === 'file' ? (
                   <a href={msg.fileData} download={msg.text} style={styles.fileLink}>
@@ -219,13 +311,29 @@ export default function ChatWindow({ selectedUser, onBack }) {
                   </div>
                 ) : (
                   <span style={{ fontStyle: msg.type === 'system' ? 'italic' : 'normal', opacity: msg.type === 'system' ? 0.7 : 1 }}>
-                    {msg.text}
+                    {renderMessageTextWithLinks(msg.text)}
                   </span>
+                )}
+                {isMine && msg.type !== 'system' && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px', opacity: 0.7 }}>
+                    {msg.status === 'seen' ? (
+                      <CheckCheck size={14} color="#4ade80" /> // Green check for seen
+                    ) : msg.status === 'delivered' ? (
+                      <CheckCheck size={14} color="#94a3b8" /> // Gray double check for delivered
+                    ) : (
+                      <Check size={14} color="#94a3b8" /> // Single gray check for sent
+                    )}
+                  </div>
                 )}
               </div>
             </div>
           );
         })}
+        {isTyping && (
+          <div style={{...styles.messageWrapper, justifyContent: 'flex-start'}}>
+            <TypingIndicator />
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -250,12 +358,21 @@ export default function ChatWindow({ selectedUser, onBack }) {
           style={styles.input}
           placeholder="Type a message..."
           value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
+          onChange={handleInputChange}
         />
         <button type="submit" className="btn-primary" style={styles.sendButton}>
           <Send size={20} />
         </button>
       </form>
+
+      {selectedMedia && (
+        <MediaViewer 
+          fileUrl={selectedMedia.url} 
+          fileName={selectedMedia.name} 
+          type={selectedMedia.type} 
+          onClose={() => setSelectedMedia(null)} 
+        />
+      )}
     </div>
   );
 }

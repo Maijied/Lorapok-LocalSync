@@ -19,6 +19,26 @@ export default function CallOverlay() {
     }
   }, [remoteStream, callState]);
 
+  const [duration, setDuration] = React.useState(0);
+
+  useEffect(() => {
+    let interval;
+    if (callState?.status === 'connected') {
+      interval = setInterval(() => {
+        setDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      setDuration(0);
+    }
+    return () => clearInterval(interval);
+  }, [callState?.status]);
+
+  const formatDuration = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   if (!callState) return null;
 
   if (callState.status === 'incoming') {
@@ -52,6 +72,9 @@ export default function CallOverlay() {
               ) : (
                 <div style={styles.videoPlaceholder}>Connecting...</div>
               )}
+              {callState.status === 'connected' && (
+                <div style={styles.videoTimer}>{formatDuration(duration)}</div>
+              )}
             </div>
             <div style={styles.localVideoContainer}>
               <video ref={localVideoRef} autoPlay playsInline muted style={styles.video} />
@@ -61,7 +84,7 @@ export default function CallOverlay() {
           <div style={styles.voiceCallContainer}>
             <div style={styles.avatarHuge}>{callState.otherUser.name.charAt(0).toUpperCase()}</div>
             <h2>{callState.otherUser.name}</h2>
-            <p>{callState.status === 'connected' ? '00:00' : 'Calling...'}</p>
+            <p>{callState.status === 'connected' ? formatDuration(duration) : 'Calling...'}</p>
             {/* hidden audio elements to play stream */}
             <audio ref={remoteVideoRef} autoPlay />
             <audio ref={localVideoRef} autoPlay muted />
@@ -161,6 +184,18 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  videoTimer: {
+    position: 'absolute',
+    top: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    color: '#fff',
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
   },
   localVideoContainer: {
     position: 'absolute',

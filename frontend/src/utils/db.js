@@ -16,6 +16,7 @@ export const initDB = async () => {
         const messageStore = db.createObjectStore('messages', { keyPath: 'id' });
         messageStore.createIndex('chatId', 'chatId', { unique: false });
         messageStore.createIndex('timestamp', 'timestamp', { unique: false });
+        messageStore.createIndex('syncState', 'syncState', { unique: false });
       }
       if (!db.objectStoreNames.contains('groups')) {
         db.createObjectStore('groups', { keyPath: 'id' });

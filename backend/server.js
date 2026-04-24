@@ -2,15 +2,33 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const Database = require('./db');
 const MessageQueue = require('./messageQueue');
+const TokenManager = require('./tokenManager');
+const EncryptionManager = require('./encryption');
 const { setupSocket } = require('./socketLogic');
+const { scheduleBackups } = require('./backup');
 
 const app = express();
 const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', limiter);
+
+app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
+
+const uploadRoute = require('./upload');
+app.use('/api/upload', uploadRoute);
 
 const io = new Server(server, {
   cors: {
@@ -25,8 +43,17 @@ const database = new Database();
 // Initialize message queue
 const messageQueue = new MessageQueue(database);
 
+// Initialize token manager
+const tokenManager = new TokenManager();
+
+// Initialize encryption manager
+const encryptionManager = new EncryptionManager();
+
 // Setup socket with database and message queue
-setupSocket(io, database, messageQueue);
+setupSocket(io, database, messageQueue, encryptionManager);
+
+// Schedule daily backups
+scheduleBackups();
 
 // Retry failed deliveries every 10 seconds
 setInterval(async () => {

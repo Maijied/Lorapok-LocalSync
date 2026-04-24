@@ -3,90 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lorapok LocalSync | Secure Router Messaging</title>
+    <title>Lorapok Communicator | Secure Local Router Messaging</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav>
-        <div class="logo">Lorapok <span>LocalSync</span></div>
+        <div class="logo">
+            <img src="frontend/public/logo.png" alt="Lorapok Logo" style="width: 32px; height: 32px;">
+            Lorapok <span>Communicator</span>
+        </div>
         <div class="links">
             <a href="#features">Features</a>
-            <a href="#install">Install</a>
+            <a href="#downloads">Downloads</a>
             <a href="https://github.com/Maijied/Lorapok-LocalSync" class="btn-git">GitHub</a>
         </div>
     </nav>
 
     <header>
         <div class="hero">
+            <div class="badge">v2.0.0 Now Available</div>
             <h1>Decentralized Chat for your <span>Local Router</span></h1>
-            <p>No Internet. No Servers. 100% Privacy. Peer-to-Peer messaging, calls, and file sharing over your own Wi-Fi.</p>
+            <p>No Internet. No Servers. 100% Privacy. Peer-to-Peer messaging, HD calls, and chunked file sharing over your own private Wi-Fi network.</p>
             <div class="hero-btns">
-                <a href="https://github.com/Maijied/Lorapok-LocalSync" class="btn-primary">Download Now</a>
-                <a href="#how-to" class="btn-secondary">How to Use</a>
+                <a href="#downloads" class="btn-primary">Download Now</a>
+                <a href="#how-to" class="btn-secondary">Learn More</a>
+            </div>
+        </div>
+        <div class="hero-image">
+            <!-- Hero animation or screenshot placeholder -->
+            <div class="glass-mockup">
+                <div class="mockup-header">
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </div>
+                <div class="mockup-content">
+                    <div class="msg sent">Hey, did you see the new file sharing?</div>
+                    <div class="msg received">Yeah! Chunked uploads are super fast. ✓✓</div>
+                </div>
             </div>
         </div>
     </header>
 
     <section id="features" class="features">
-        <div class="card">
-            <div class="icon">🔒</div>
-            <h3>PIN Security</h3>
-            <p>Access your local profile with a secure 4-digit PIN stored only on your device.</p>
+        <div class="section-header">
+            <h2>Why Choose <span>Lorapok?</span></h2>
+            <p>Built for speed, privacy, and seamless local collaboration.</p>
         </div>
-        <div class="card">
-            <div class="icon">🎭</div>
-            <h3>60+ Anime Avatars</h3>
-            <p>Pre-bundled anime and animal DPs that work completely offline.</p>
-        </div>
-        <div class="card">
-            <div class="icon">📞</div>
-            <h3>P2P HD Calls</h3>
-            <p>Ultra low-latency video and voice calls using WebRTC technology.</p>
+        <div class="features-grid">
+            <div class="card">
+                <div class="icon">🔒</div>
+                <h3>E2EE & PIN Security</h3>
+                <p>Web Crypto API encryption ensures your messages never leave your router in plain text.</p>
+            </div>
+            <div class="card">
+                <div class="icon">📁</div>
+                <h3>Media System</h3>
+                <p>Chunked file uploads to disk with dedicated media viewer for images and videos.</p>
+            </div>
+            <div class="card">
+                <div class="icon">🔍</div>
+                <h3>Global Search</h3>
+                <p>Instantly find messages and contacts across your entire local history.</p>
+            </div>
+            <div class="card">
+                <h3>QR Sync</h3>
+                <p>Scan a QR code on your PC to instantly connect your mobile device to the local network.</p>
+            </div>
+            <div class="card">
+                <h3>Offline Sync</h3>
+                <p>Messages are queued locally and automatically sync when you reconnect to the router.</p>
+            </div>
+            <div class="card">
+                <h3>Cross-Platform</h3>
+                <p>Native apps for Windows, macOS, Linux, and Android. Built with Electron and Capacitor.</p>
+            </div>
         </div>
     </section>
 
-    <section id="install" class="usage">
-        <h2>One-Click <span>Installation</span></h2>
-        <div class="steps">
-            <div class="step">
-                <div class="step-num">WIN</div>
-                <h4>Windows Setup</h4>
-                <p>Download the repo and double-click <strong>install.bat</strong>. It installs everything and asks to start the app instantly.</p>
-                <div class="code-box">./install.bat</div>
-            </div>
-            <div class="step">
-                <div class="step-num">UNIX</div>
-                <h4>Mac & Linux</h4>
-                <p>Open terminal and run the bash script. It handles dependencies and avatar generation automatically.</p>
-                <div class="code-box">bash install.sh</div>
-            </div>
+    <section id="downloads" class="usage">
+        <h2>Download <span>Latest Release</span></h2>
+        <div class="downloads-grid">
+            <a href="https://github.com/Maijied/Lorapok-LocalSync/releases/latest" class="download-card">
+                <div class="os-icon">🪟</div>
+                <h4>Windows</h4>
+                <span>.exe / .zip</span>
+            </a>
+            <a href="https://github.com/Maijied/Lorapok-LocalSync/releases/latest" class="download-card">
+                <div class="os-icon">🍎</div>
+                <h4>macOS</h4>
+                <span>.dmg</span>
+            </a>
+            <a href="https://github.com/Maijied/Lorapok-LocalSync/releases/latest" class="download-card">
+                <div class="os-icon">🐧</div>
+                <h4>Linux</h4>
+                <span>.AppImage</span>
+            </a>
+            <a href="https://github.com/Maijied/Lorapok-LocalSync/releases/latest" class="download-card">
+                <div class="os-icon">🤖</div>
+                <h4>Android</h4>
+                <span>.apk</span>
+            </a>
         </div>
     </section>
 
     <section id="how-to" class="usage">
-        <h2>How to Use <span>Lorapok</span></h2>
+        <h2>How to <span>Connect</span></h2>
         <div class="steps">
             <div class="step">
                 <span class="step-num">1</span>
-                <h4>Join the Router</h4>
-                <p>Ensure all devices (PC, Phone, Tablet) are connected to the same Wi-Fi router.</p>
+                <h4>Join Wi-Fi</h4>
+                <p>Ensure all devices are connected to the same router.</p>
             </div>
             <div class="step">
                 <span class="step-num">2</span>
-                <h4>Create Identity</h4>
-                <p>Set your display name, choose an anime DP, and set your 4-digit security PIN.</p>
+                <h4>Host & Scan</h4>
+                <p>Start the app on your PC and scan the QR code with your phone.</p>
             </div>
             <div class="step">
                 <span class="step-num">3</span>
-                <h4>Invite & Connect</h4>
-                <p>Share your Local IP or use <strong>Secret Keys</strong> to join groups instantly.</p>
+                <h4>Chat Privately</h4>
+                <p>Enjoy secure, router-based communication with no data caps.</p>
             </div>
         </div>
     </section>
 
     <footer>
-        <p>&copy; 2026 Lorapok LocalSync. Built for local-first communication.</p>
+        <div class="footer-content">
+            <div class="logo">Lorapok <span>Communicator</span></div>
+            <p>&copy; 2026 Lorapok LocalSync. Built for the privacy-conscious local community.</p>
+        </div>
     </footer>
 </body>
 </html>
