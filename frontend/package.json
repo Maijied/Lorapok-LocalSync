@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/Maijied/Lorapok-LocalSync.git"
   },
-  "author": "Maijied",
+  "author": "Mohammad Maizied Hasan Majumder <mdshuvo40@gmail.com>",
   "homepage": "https://Maijied.github.io/Lorapok-LocalSync",
   "main": "electron/main.js",
   "type": "module",
