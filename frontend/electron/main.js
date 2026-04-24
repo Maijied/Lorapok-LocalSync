@@ -8,9 +8,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
-    },
-    icon: path.join(__dirname, '../public/favicon.ico')
+      preload: path.join(app.getAppPath(), 'electron/preload.js')
+    }
   });
 
   // Check if we are in development mode

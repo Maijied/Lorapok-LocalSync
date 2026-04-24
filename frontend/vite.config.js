@@ -4,6 +4,7 @@ import { Server } from 'socket.io'
 import { setupSocket } from '../backend/socketLogic.js'
 
 export default defineConfig({
+  base: './',
   plugins: [
     react(),
     {
