@@ -22,6 +22,8 @@ export default function ChatWindow({ selectedUser, onBack }) {
   const [isTyping, setIsTyping] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -171,50 +173,107 @@ export default function ChatWindow({ selectedUser, onBack }) {
     
     setUploadProgress(1); // Start progress
     
-    try {
-      const baseUrl = getBackendUrlSync();
-      
-      const response = await fetch(`${baseUrl}/api/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const data = await response.json();
-      setUploadProgress(0); // Reset progress
-      
-      if (data.url) {
-        const chatId = [user.id, selectedUser.id].sort().join('_');
-        
-        let type = 'file';
-        if (file.type.startsWith('image/')) type = 'image';
-        else if (file.type.startsWith('video/')) type = 'video';
-        
-        // Use full URL to backend for the file
-        const fullUrl = `${baseUrl}${data.url}`;
-        
-        const newMsg = {
-          id: uuidv4(),
-          chatId,
-          from: user.id,
-          to: selectedUser.id,
-          text: data.filename,
-          fileData: fullUrl,
-          type: type,
-          status: 'sent',
-          timestamp: Date.now(),
-        };
+    const baseUrl = getBackendUrlSync();
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${baseUrl}/api/upload`, true);
 
-        setMessages(prev => [...prev, newMsg]);
-        await saveMessage(newMsg);
-        socket.emit('private_message', newMsg);
-        scrollToBottom();
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percentComplete);
       }
-    } catch (error) {
-      console.error('Upload failed:', error);
+    };
+
+    xhr.onload = async () => {
+      if (xhr.status === 200) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.url) {
+            const chatId = [user.id, selectedUser.id].sort().join('_');
+            let type = 'file';
+            if (file.type.startsWith('image/')) type = 'image';
+            else if (file.type.startsWith('video/')) type = 'video';
+            
+            const fullUrl = `${baseUrl}${data.url}`;
+            const newMsg = {
+              id: uuidv4(),
+              chatId,
+              from: user.id,
+              to: selectedUser.id,
+              text: data.filename,
+              fileData: fullUrl,
+              type: type,
+              status: 'sent',
+              timestamp: Date.now(),
+            };
+
+            setMessages(prev => [...prev, newMsg]);
+            await saveMessage(newMsg);
+            socket.emit('private_message', newMsg);
+            scrollToBottom();
+          }
+        } catch (err) {
+          console.error('Failed to parse upload response');
+        }
+      } else {
+        alert('Upload failed.');
+      }
       setUploadProgress(0);
-    }
-    
+    };
+
+    xhr.onerror = () => {
+      console.error('Upload failed');
+      alert('Upload failed. Check your connection.');
+      setUploadProgress(0);
+    };
+
+    xhr.send(formData);
     e.target.value = null; // reset
+  };
+
+  const handleDownload = (e, msg) => {
+    e.preventDefault();
+    if (downloadingId) return; // Prevent multiple simultaneous downloads
+    
+    setDownloadingId(msg.id);
+    setDownloadProgress(1);
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', msg.fileData, true);
+    xhr.responseType = 'blob';
+    
+    xhr.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        setDownloadProgress(percentComplete);
+      }
+    };
+    
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const url = window.URL.createObjectURL(xhr.response);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = msg.text;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+      } else {
+        alert('Download failed.');
+      }
+      setDownloadingId(null);
+      setDownloadProgress(0);
+    };
+    
+    xhr.onerror = () => {
+      alert('Download failed. Check your connection.');
+      setDownloadingId(null);
+      setDownloadProgress(0);
+    };
+    
+    xhr.send();
   };
 
   const renderMessageTextWithLinks = (text) => {
@@ -312,12 +371,19 @@ export default function ChatWindow({ selectedUser, onBack }) {
                     <video src={msg.fileData} style={styles.imageAttachment} />
                   </div>
                 ) : msg.type === 'file' ? (
-                  <a href={msg.fileData} download={msg.text} style={{...styles.fileLink, color: 'inherit'}}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.1)', padding: '8px 12px', borderRadius: '8px'}}>
-                      <span>📄</span>
-                      <span style={{wordBreak: 'break-all'}}>{msg.text}</span>
-                    </div>
-                  </a>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                    <a href={msg.fileData} onClick={(e) => handleDownload(e, msg)} style={{...styles.fileLink, color: 'inherit', cursor: 'pointer'}}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.1)', padding: '8px 12px', borderRadius: '8px'}}>
+                        <span>📄</span>
+                        <span style={{wordBreak: 'break-all'}}>{msg.text}</span>
+                      </div>
+                    </a>
+                    {downloadingId === msg.id && (
+                      <div style={{width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px'}}>
+                        <div style={{width: `${downloadProgress}%`, height: '100%', backgroundColor: 'var(--primary-color)', transition: 'width 0.2s'}} />
+                      </div>
+                    )}
+                  </div>
                 ) : msg.type === 'invite' ? (
                   <div style={styles.inviteBubble}>
                      <p>{msg.text}</p>
@@ -353,6 +419,18 @@ export default function ChatWindow({ selectedUser, onBack }) {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {uploadProgress > 0 && (
+        <div style={{padding: '0 20px', width: '100%'}}>
+          <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px'}}>
+            <span>Uploading...</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div style={{width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden'}}>
+            <div style={{width: `${uploadProgress}%`, height: '100%', backgroundColor: 'var(--primary-color)', transition: 'width 0.2s'}} />
+          </div>
+        </div>
+      )}
 
       <form style={styles.inputArea} onSubmit={sendMessage}>
         <button 

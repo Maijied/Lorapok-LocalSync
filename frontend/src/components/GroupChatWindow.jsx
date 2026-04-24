@@ -12,6 +12,9 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -121,49 +124,111 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
       return;
     }
 
-    try {
-      const baseUrl = getBackendUrlSync();
-      
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch(`${baseUrl}/api/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const data = await response.json();
-      
-      if (data.url) {
-        let type = 'file';
-        if (file.type.startsWith('image/')) type = 'image';
-        else if (file.type.startsWith('video/')) type = 'video';
-        
-        const fullUrl = `${baseUrl}${data.url}`;
-        
-        const newMsg = {
-          id: uuidv4(),
-          chatId: selectedGroup.id,
-          groupId: selectedGroup.id,
-          from: user.id,
-          fromName: user.name,
-          text: data.filename,
-          fileData: fullUrl,
-          type: type,
-          timestamp: Date.now(),
-        };
-
-        setMessages(prev => [...prev, newMsg]);
-        await saveMessage(newMsg);
-        socket.emit('group_message', newMsg);
-        scrollToBottom();
-      }
-    } catch (error) {
-      console.error('Group upload failed:', error);
-      alert('File upload failed. Make sure the server is running.');
-    }
+    setUploadProgress(1);
+    const baseUrl = getBackendUrlSync();
     
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${baseUrl}/api/upload`, true);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percentComplete);
+      }
+    };
+
+    xhr.onload = async () => {
+      if (xhr.status === 200) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.url) {
+            let type = 'file';
+            if (file.type.startsWith('image/')) type = 'image';
+            else if (file.type.startsWith('video/')) type = 'video';
+            
+            const fullUrl = `${baseUrl}${data.url}`;
+            const newMsg = {
+              id: uuidv4(),
+              chatId: selectedGroup.id,
+              groupId: selectedGroup.id,
+              from: user.id,
+              fromName: user.name,
+              text: data.filename,
+              fileData: fullUrl,
+              type: type,
+              timestamp: Date.now(),
+            };
+
+            setMessages(prev => [...prev, newMsg]);
+            await saveMessage(newMsg);
+            socket.emit('group_message', newMsg);
+            scrollToBottom();
+          }
+        } catch (err) {
+          console.error('Failed to parse group upload response');
+        }
+      } else {
+        alert('Upload failed.');
+      }
+      setUploadProgress(0);
+    };
+
+    xhr.onerror = () => {
+      console.error('Group upload failed');
+      alert('File upload failed. Make sure the server is running.');
+      setUploadProgress(0);
+    };
+
+    xhr.send(formData);
     e.target.value = null;
+  };
+
+  const handleDownload = (e, msg) => {
+    e.preventDefault();
+    if (downloadingId) return;
+    
+    setDownloadingId(msg.id);
+    setDownloadProgress(1);
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', msg.fileData, true);
+    xhr.responseType = 'blob';
+    
+    xhr.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        setDownloadProgress(percentComplete);
+      }
+    };
+    
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const url = window.URL.createObjectURL(xhr.response);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = msg.text;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+      } else {
+        alert('Download failed.');
+      }
+      setDownloadingId(null);
+      setDownloadProgress(0);
+    };
+    
+    xhr.onerror = () => {
+      alert('Download failed. Check your connection.');
+      setDownloadingId(null);
+      setDownloadProgress(0);
+    };
+    
+    xhr.send();
   };
 
   if (!selectedGroup) return null;
@@ -217,12 +282,19 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
                     <video src={msg.fileData} controls style={styles.imageAttachment} />
                   </div>
                 ) : msg.type === 'file' ? (
-                  <a href={msg.fileData} download={msg.text} style={{...styles.fileLink, color: 'inherit'}}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.1)', padding: '8px 12px', borderRadius: '8px'}}>
-                      <span>📄</span>
-                      <span style={{wordBreak: 'break-all'}}>{msg.text}</span>
-                    </div>
-                  </a>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                    <a href={msg.fileData} onClick={(e) => handleDownload(e, msg)} style={{...styles.fileLink, color: 'inherit', cursor: 'pointer'}}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.1)', padding: '8px 12px', borderRadius: '8px'}}>
+                        <span>📄</span>
+                        <span style={{wordBreak: 'break-all'}}>{msg.text}</span>
+                      </div>
+                    </a>
+                    {downloadingId === msg.id && (
+                      <div style={{width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px'}}>
+                        <div style={{width: `${downloadProgress}%`, height: '100%', backgroundColor: 'var(--primary-color)', transition: 'width 0.2s'}} />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div>
                     {msg.text}
@@ -237,6 +309,18 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
         })}
         <div ref={messagesEndRef} />
       </div>
+
+      {uploadProgress > 0 && (
+        <div style={{padding: '0 20px', width: '100%'}}>
+          <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px'}}>
+            <span>Uploading...</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div style={{width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden'}}>
+            <div style={{width: `${uploadProgress}%`, height: '100%', backgroundColor: 'var(--primary-color)', transition: 'width 0.2s'}} />
+          </div>
+        </div>
+      )}
 
       <form style={styles.inputArea} onSubmit={sendMessage}>
         <button 
