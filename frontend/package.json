@@ -9,6 +9,7 @@
   },
   "author": "Maijied",
   "homepage": "https://Maijied.github.io/Lorapok-LocalSync",
+  "main": "electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
