@@ -1,8 +1,11 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
+set "AUTO_START="
+if /i "%~1"=="/start" set "AUTO_START=y"
+if /i "%~1"=="--start" set "AUTO_START=y"
 
 echo ==========================================
-echo    Lorapok LocalSync - One Click Install
+echo    Lorapok Communicator - One Click Install
 echo ==========================================
 echo.
 
@@ -35,9 +38,13 @@ echo ==========================================
 echo    INSTALLATION COMPLETE!
 echo ==========================================
 echo.
-set /p START_APP="Do you want to start Lorapok LocalSync now? (y/n): "
+if defined AUTO_START (
+    set "START_APP=%AUTO_START%"
+) else (
+    set /p START_APP="Do you want to start Lorapok Communicator now? (y/n): "
+)
 if /i "%START_APP%"=="y" (
-    echo Starting the app...
+    echo Starting frontend and backend...
     npm run dev
 ) else (
     echo.
