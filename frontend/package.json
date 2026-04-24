@@ -57,13 +57,16 @@
       "electron/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "Lorapok-Setup.exe"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "artifactName": "Lorapok.dmg"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "artifactName": "Lorapok.AppImage"
     }
   }
 }
