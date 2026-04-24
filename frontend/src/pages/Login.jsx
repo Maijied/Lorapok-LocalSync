@@ -28,6 +28,7 @@ export default function Login() {
   const [pin, setPin] = useState('');
   const [selectedDp, setSelectedDp] = useState(AVATARS[0]);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -38,7 +39,7 @@ export default function Login() {
 
   const handleUnlock = async (e) => {
     e.preventDefault();
-    const success = await unlock(pin);
+    const success = await unlock(pin, rememberMe);
     if (!success) setError('Incorrect PIN');
   };
 
@@ -63,6 +64,20 @@ export default function Login() {
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
               style={styles.pinInput}
             />
+
+            <div style={styles.rememberMeContainer}>
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={styles.checkbox}
+              />
+              <label htmlFor="rememberMe" style={styles.rememberMeLabel}>
+                Remember me for 30 days (don't ask for PIN)
+              </label>
+            </div>
+
             {error && <p style={styles.error}>{error}</p>}
             <button type="submit" className="btn-primary" style={styles.button}>
               Unlock Lorapok
@@ -77,8 +92,8 @@ export default function Login() {
     <div style={styles.container}>
       <div className="glass-panel" style={styles.cardWide}>
         <div style={styles.header}>
-          <h1>Lorapok LocalSync</h1>
-          <p>Create your local network identity</p>
+          <h1>Lorapok Communicator</h1>
+          <p>Secure encrypted communication for your local network</p>
         </div>
         
         <div style={styles.registerSplit}>
@@ -267,5 +282,22 @@ const styles = {
     fontSize: '11px',
     letterSpacing: '1px',
     fontWeight: 'bold',
+  },
+  rememberMeContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '12px',
+    color: 'var(--text-muted)',
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
+    accentColor: 'var(--primary-color)',
+  },
+  rememberMeLabel: {
+    cursor: 'pointer',
+    userSelect: 'none',
   }
 };

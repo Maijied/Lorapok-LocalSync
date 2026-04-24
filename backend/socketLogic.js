@@ -1,6 +1,7 @@
-export const setupSocket = (io) => {
+const setupSocket = (io, database, messageQueue) => {
   // Store connected users (socketId -> userData)
-  const connectedUsers = new Map();
+  const connectedUsers = new Map(); // socketId -> userData
+  const userSocketMap = new Map(); // userId -> socketId (for quick lookup)
 
   // Store public groups in memory
   const publicGroups = new Map();
@@ -9,19 +10,80 @@ export const setupSocket = (io) => {
     console.log('A user connected:', socket.id);
 
     // User registers their presence
-    socket.on('register', (userData) => {
+    socket.on('register', async (userData) => {
       // userData now includes { id, name, dp }
       connectedUsers.set(socket.id, userData);
+      userSocketMap.set(userData.id, socket.id);
+
+      // Save/update user in database
+      if (database) {
+        try {
+          // For now, store a hash of the PIN (in real app, would be hashed on client)
+          await database.saveUser(userData.id, userData.name, userData.pin || 'default', userData.dp);
+          await database.updateLastSeen(userData.id);
+        } catch (error) {
+          console.error('Error saving user to database:', error);
+        }
+      }
+
+      // Deliver queued messages to this user
+      if (messageQueue && database) {
+        try {
+          const queuedMessages = await messageQueue.deliverQueuedMessages(userData.id, socket);
+          if (queuedMessages.length > 0) {
+            console.log(`Delivered ${queuedMessages.length} queued messages to ${userData.name}`);
+          }
+        } catch (error) {
+          console.error('Error delivering queued messages:', error);
+        }
+      }
+
       io.emit('users_update', Array.from(connectedUsers.values()));
       socket.emit('public_groups_update', Array.from(publicGroups.values()));
       console.log('User registered:', userData.name);
     });
 
     // Handle private messages
-    socket.on('private_message', (data) => {
-      const recipientSocket = Array.from(connectedUsers.entries()).find(([id, user]) => user.id === data.to);
-      if (recipientSocket) {
-        io.to(recipientSocket[0]).emit('private_message', data);
+    socket.on('private_message', async (data) => {
+      // Save message to database
+      if (database) {
+        try {
+          await database.saveMessage({
+            id: data.id,
+            from: data.from,
+            to: data.to,
+            groupId: null,
+            content: data.text,
+            encrypted: data.encrypted || false,
+            status: 'sent',
+            timestamp: data.timestamp
+          });
+        } catch (error) {
+          console.error('Error saving message to database:', error);
+        }
+      }
+
+      // Find recipient
+      const recipientSocketId = userSocketMap.get(data.to);
+
+      if (recipientSocketId) {
+        // Recipient is online - send immediately
+        io.to(recipientSocketId).emit('private_message', data);
+
+        // Mark as delivered in database
+        if (database) {
+          try {
+            await database.updateMessageStatus(data.id, 'delivered');
+            await database.saveDeliveryStatus(data.id, data.to, 'delivered');
+          } catch (error) {
+            console.error('Error updating delivery status:', error);
+          }
+        }
+      } else {
+        // Recipient is offline - queue for delivery
+        if (messageQueue) {
+          await messageQueue.queueForOfflineDelivery(data, data.to);
+        }
       }
     });
 
@@ -109,10 +171,27 @@ export const setupSocket = (io) => {
       socket.to(data.groupId).emit('group_message', data);
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
+      const userData = connectedUsers.get(socket.id);
       console.log('User disconnected:', socket.id);
+
+      // Update last seen in database
+      if (userData && database) {
+        try {
+          await database.updateLastSeen(userData.id);
+        } catch (error) {
+          console.error('Error updating last seen:', error);
+        }
+      }
+
       connectedUsers.delete(socket.id);
+      if (userData) {
+        userSocketMap.delete(userData.id);
+      }
       io.emit('users_update', Array.from(connectedUsers.values()));
     });
   });
 };
+
+module.exports = { setupSocket };
+
