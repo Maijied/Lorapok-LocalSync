@@ -133,7 +133,7 @@ jobs:
           # Use the root files as the landing page
           # Copy them to a clean folder for deployment
           mkdir -p deploy_site
-          cp index.html style.css logo.svg deploy_site/
+          cp index.html style.css logo.png deploy_site/
           
           # Include the built React App as a sub-app
           mkdir -p deploy_site/app

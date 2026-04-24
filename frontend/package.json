@@ -73,6 +73,7 @@
     },
     "linux": {
       "target": ["AppImage", "deb"],
+      "category": "Communication",
       "artifactName": "Lorapok-LocalSync-${version}.${ext}"
     }
   }
