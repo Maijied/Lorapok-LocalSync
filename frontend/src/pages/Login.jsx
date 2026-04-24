@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { Shield, User, Camera } from 'lucide-react';
 
 const AVATARS = Array.from({ length: 60 }, (_, i) => {
-  if (i < 50) return `/avatars/anime_${i + 1}.svg`;
-  return `/avatars/animal_${i - 49}.svg`;
+  if (i < 50) return `./avatars/anime_${i + 1}.svg`;
+  return `./avatars/animal_${i - 49}.svg`;
 });
 
 export default function Login() {
@@ -108,7 +108,7 @@ export default function Login() {
     <div style={styles.container}>
       <div className="glass-panel login-card" style={styles.cardWide}>
         <div style={styles.header}>
-          <img src="/logo-transparent.png" alt="Lorapok Logo" className="login-logo" style={styles.logo} />
+          <img src="./logo-transparent.png" alt="Lorapok Logo" className="login-logo" style={styles.logo} />
           <h1 className="login-title">Lorapok LocalSync</h1>
           <p>Secure encrypted communication for your local network</p>
         </div>
@@ -247,11 +247,13 @@ const styles = {
   },
   registerSplit: {
     display: 'flex',
-    gap: '40px',
+    flexWrap: 'wrap',
+    gap: '24px',
     marginTop: '20px',
   },
   avatarSection: {
-    flex: 1,
+    flex: '1 1 300px',
+    minWidth: 0,
   },
   avatarGrid: {
     display: 'grid',
@@ -278,7 +280,8 @@ const styles = {
     height: '100%',
   },
   formSplit: {
-    width: '300px',
+    flex: '1 1 250px',
+    minWidth: '200px',
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
