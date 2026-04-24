@@ -127,7 +127,7 @@ jobs:
           sed -i "s|\[\[APK_LINK\]\]|$BASE_URL/app-debug.apk|g" index.html
           
           # Copy landing page to distribution folder
-          cp index.html style.css logo.png frontend/dist/
+          cp index.html style.css logo.svg frontend/dist/
 
       - name: Create or Update Release
         uses: softprops/action-gh-release@v1
