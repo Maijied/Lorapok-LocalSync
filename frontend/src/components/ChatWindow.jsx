@@ -9,6 +9,7 @@ import { getGroups } from '../utils/db';
 import TypingIndicator from './TypingIndicator';
 import MediaViewer from './MediaViewer';
 import LinkPreview from './LinkPreview';
+import { getBackendUrlSync } from '../utils/api';
 
 export default function ChatWindow({ selectedUser, onBack }) {
   const { user } = useAuth();
@@ -164,9 +165,7 @@ export default function ChatWindow({ selectedUser, onBack }) {
     setUploadProgress(1); // Start progress
     
     try {
-      // In a real app we'd use axios for progress tracking, but fetch works for simple upload
-      const host = window.location.hostname;
-      const baseUrl = `http://${host}:4000`;
+      const baseUrl = getBackendUrlSync();
       
       const response = await fetch(`${baseUrl}/api/upload`, {
         method: 'POST',

@@ -36,13 +36,17 @@ export default function Dashboard() {
     loadGroups();
 
     const handleGroupCreated = async (groupData) => {
-      // Check if we already have this group locally
       setGroups(prev => {
-        if (!prev.find(g => g.id === groupData.id)) {
+        const existing = prev.find(g => g.id === groupData.id);
+        if (existing) {
+          // Update existing group with potentially missing data (like secretKey)
+          const updated = { ...existing, ...groupData };
+          saveGroup(updated);
+          return prev.map(g => g.id === groupData.id ? updated : g);
+        } else {
           saveGroup(groupData);
           return [...prev, groupData];
         }
-        return prev;
       });
       socket.emit('join_group', groupData.id);
     };
@@ -140,7 +144,7 @@ export default function Dashboard() {
         <div style={styles.header}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-              <img src="./logo.png" alt="Logo" style={{width: '24px', height: '24px', objectFit: 'contain'}} />
+              <img src="./logo-transparent.png" alt="Logo" style={{width: '32px', height: '32px', objectFit: 'contain'}} />
               <h2 style={{margin: 0, fontSize: '1.2rem'}}>Lorapok Chats</h2>
             </div>
             <HelpCircle size={20} style={{cursor: 'pointer', opacity: 0.7}} onClick={() => setShowHelp(true)} />

@@ -2,7 +2,7 @@
   "name": "lorapok-localsync",
   "productName": "Lorapok LocalSync",
   "private": true,
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Secure encrypted communication for your local network",
   "repository": {
     "type": "git",
@@ -65,6 +65,17 @@
       "dist/**/*",
       "electron/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!node_modules{,/**}",
+          "!lorapok.db"
+        ]
+      }
     ],
     "win": {
       "target": "nsis",

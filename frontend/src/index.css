@@ -110,11 +110,29 @@ input, button {
   .dashboard-container {
     padding: 0 !important;
     gap: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
   }
   .sidebar, .main-content {
     width: 100% !important;
     border-radius: 0 !important;
     border: none !important;
+    min-width: 0 !important;
+  }
+  .sidebar {
+    height: 100vh !important;
+    height: 100dvh !important;
+  }
+  .main-content {
+    height: 100vh !important;
+    height: 100dvh !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    background: var(--bg-dark) !important;
   }
   .hidden-mobile {
     display: none !important;
@@ -122,7 +140,55 @@ input, button {
   .mobile-back-btn {
     display: flex !important;
   }
+
+  /* Improve touch targets */
+  .btn-primary {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .input-field {
+    font-size: 16px !important; /* Prevent iOS zoom on focus */
+    min-height: 44px;
+  }
+
+  /* Login page mobile */
+  .login-card {
+    margin: 10px !important;
+    padding: 24px !important;
+    max-width: 100% !important;
+    width: calc(100% - 20px) !important;
+  }
+  .login-logo {
+    width: 100px !important;
+    height: 100px !important;
+  }
+  .login-title {
+    font-size: 1.4rem !important;
+  }
+  .avatar-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+  }
+  .avatar-grid img {
+    width: 48px !important;
+    height: 48px !important;
+  }
 }
+
+/* Extra small devices */
+@media (max-width: 380px) {
+  .login-card {
+    padding: 16px !important;
+  }
+  .login-logo {
+    width: 80px !important;
+    height: 80px !important;
+  }
+  .avatar-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
 .mobile-back-btn {
   display: none;
   background: transparent;
@@ -137,4 +203,14 @@ input, button {
 @keyframes typing-bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
+}
+
+/* Safe area insets for notched phones */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .sidebar {
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+  .main-content form {
+    padding-bottom: calc(15px + env(safe-area-inset-bottom)) !important;
+  }
 }

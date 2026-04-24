@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getBackendUrlSync } from '../utils/api';
 
 export default function LinkPreview({ url }) {
   const [metadata, setMetadata] = useState(null);
@@ -7,8 +8,8 @@ export default function LinkPreview({ url }) {
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
-        const host = window.location.hostname;
-        const response = await fetch(`http://${host}:4000/api/link-preview?url=${encodeURIComponent(url)}`);
+        const baseUrl = getBackendUrlSync();
+        const response = await fetch(`${baseUrl}/api/link-preview?url=${encodeURIComponent(url)}`);
         const data = await response.json();
         setMetadata(data);
       } catch (error) {

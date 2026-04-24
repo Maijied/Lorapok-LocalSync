@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { getBackendUrl } from '../utils/api';
 
 const SocketContext = createContext();
 
@@ -12,14 +13,29 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Connect to the same dynamic port where Vite is running
-    const newSocket = io('/', {
-      autoConnect: false,
-    });
+    let newSocket;
 
-    setSocket(newSocket);
+    const initSocket = async () => {
+      const backendUrl = await getBackendUrl();
+      console.log('Connecting to backend at:', backendUrl);
 
-    return () => newSocket.close();
+      newSocket = io(backendUrl, {
+        autoConnect: false,
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+      });
+
+      setSocket(newSocket);
+    };
+
+    initSocket();
+
+    return () => {
+      if (newSocket) newSocket.close();
+    };
   }, []);
 
   useEffect(() => {
@@ -27,7 +43,12 @@ export const SocketProvider = ({ children }) => {
       socket.connect();
       
       socket.on('connect', () => {
+        console.log('Socket connected, registering user:', user.name);
         socket.emit('register', user);
+      });
+
+      socket.on('connect_error', (err) => {
+        console.warn('Socket connection error:', err.message);
       });
 
       socket.on('users_update', (users) => {
@@ -37,6 +58,7 @@ export const SocketProvider = ({ children }) => {
 
       return () => {
         socket.off('connect');
+        socket.off('connect_error');
         socket.off('users_update');
         socket.disconnect();
       };

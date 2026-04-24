@@ -9,9 +9,14 @@ const TokenManager = require('./tokenManager');
 const EncryptionManager = require('./encryption');
 const { setupSocket } = require('./socketLogic');
 const { scheduleBackups } = require('./backup');
+const DiscoveryService = require('./discovery');
 
 const app = express();
 const server = http.createServer(app);
+
+// Start Discovery Service
+const discovery = new DiscoveryService();
+discovery.start();
 
 app.use(cors());
 app.use(express.json());

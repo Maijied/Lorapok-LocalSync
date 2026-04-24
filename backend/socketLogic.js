@@ -166,13 +166,25 @@ const setupSocket = (io, database, messageQueue, encryptionManager) => {
       }
     });
     // Group Chat Signaling
-    socket.on('create_group', (groupData) => {
+    socket.on('create_group', async (groupData) => {
       // Generate a 6-char secret key if not present
       const secretKey = Math.random().toString(36).substring(2, 8).toUpperCase();
       const enrichedGroup = { ...groupData, secretKey };
       
       socket.join(enrichedGroup.id);
       
+      // Save to database
+      if (database) {
+        try {
+          await database.saveGroup(enrichedGroup.id, enrichedGroup.name, enrichedGroup.createdBy, secretKey, enrichedGroup.isPublic);
+          for (const memberId of enrichedGroup.members) {
+            await database.addGroupMember(enrichedGroup.id, memberId);
+          }
+        } catch (error) {
+          console.error('Error saving group to database:', error);
+        }
+      }
+
       if (enrichedGroup.isPublic) {
         publicGroups.set(enrichedGroup.id, enrichedGroup);
         io.emit('public_groups_update', Array.from(publicGroups.values()));
@@ -187,11 +199,42 @@ const setupSocket = (io, database, messageQueue, encryptionManager) => {
       });
     });
 
-    socket.on('join_group_with_key', (secretKey) => {
-      const group = Array.from(publicGroups.values()).find(g => g.secretKey === secretKey);
+    socket.on('join_group_with_key', async (secretKey) => {
+      let group = Array.from(publicGroups.values()).find(g => g.secretKey === secretKey);
+      
+      if (!group && database) {
+        // Try searching in database
+        try {
+          const dbGroup = await database.getGroupBySecretKey(secretKey);
+          if (dbGroup) {
+            const members = await database.getGroupMembers(dbGroup.id);
+            group = {
+              id: dbGroup.id,
+              name: dbGroup.name,
+              members: members.map(m => m.user_id),
+              createdBy: dbGroup.created_by,
+              isPublic: dbGroup.is_public === 1,
+              secretKey: dbGroup.secret_key
+            };
+          }
+        } catch (e) {}
+      }
+
       if (group) {
+        const userId = connectedUsers.get(socket.id)?.id;
+        if (userId && !group.members.includes(userId)) {
+          group.members.push(userId);
+          if (database) await database.addGroupMember(group.id, userId);
+        }
+
         socket.join(group.id);
         socket.emit('group_created', group);
+        
+        // Send chat history
+        if (database) {
+          const history = await database.getGroupMessages(group.id, 50);
+          socket.emit('group_history', { groupId: group.id, messages: history.reverse() });
+        }
       } else {
         socket.emit('error', 'Invalid Group Key');
       }
@@ -208,24 +251,52 @@ const setupSocket = (io, database, messageQueue, encryptionManager) => {
       }
     });
 
-    socket.on('join_group', (groupId) => {
+    socket.on('join_group', async (groupId) => {
       socket.join(groupId);
+      // Optional: Send history on rejoin
+      if (database) {
+        const history = await database.getGroupMessages(groupId, 50);
+        socket.emit('group_history', { groupId, messages: history.reverse() });
+      }
     });
 
-    socket.on('join_public_group', (data) => {
+    socket.on('join_public_group', async (data) => {
       const group = publicGroups.get(data.groupId);
       if (group && !group.members.includes(data.user.id)) {
         group.members.push(data.user.id);
         publicGroups.set(data.groupId, group);
         
+        if (database) await database.addGroupMember(data.groupId, data.user.id);
+
         socket.join(data.groupId);
         socket.emit('group_created', group); // Tell the user they joined
         io.emit('public_groups_update', Array.from(publicGroups.values()));
+
+        // Send chat history
+        if (database) {
+          const history = await database.getGroupMessages(data.groupId, 50);
+          socket.emit('group_history', { groupId: data.groupId, messages: history.reverse() });
+        }
       }
     });
 
-    socket.on('group_message', (data) => {
+    socket.on('group_message', async (data) => {
       socket.to(data.groupId).emit('group_message', data);
+      // Save to database
+      if (database) {
+        try {
+          await database.saveMessage({
+            id: data.id,
+            from: data.from,
+            to: null,
+            groupId: data.groupId,
+            content: data.text,
+            encrypted: data.encrypted || false,
+            status: 'sent',
+            timestamp: data.timestamp
+          });
+        } catch (e) {}
+      }
     });
 
     socket.on('disconnect', async () => {

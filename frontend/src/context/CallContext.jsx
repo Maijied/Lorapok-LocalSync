@@ -73,6 +73,12 @@ export const CallProvider = ({ children }) => {
 
   const startCall = async (otherUser, isVideo) => {
     try {
+      // Check if getUserMedia is available (requires HTTPS or localhost)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Calls require a secure connection (HTTPS or localhost).\n\nTo use calls over LAN, access the app via https:// or localhost.');
+        return;
+      }
+      
       setCallState({ status: 'outgoing', otherUser, isVideo });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
       setLocalStream(stream);
@@ -91,6 +97,11 @@ export const CallProvider = ({ children }) => {
       });
     } catch (err) {
       console.error("Failed to start call", err);
+      if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
+        alert('Camera/Microphone access denied.\n\nPlease allow permissions or use HTTPS for calls over LAN.');
+      } else {
+        alert('Failed to start call: ' + err.message);
+      }
       setCallState(null);
     }
   };
@@ -99,6 +110,12 @@ export const CallProvider = ({ children }) => {
     if (!callState || !callState.offer) return;
     
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Calls require a secure connection (HTTPS or localhost).');
+        endCall();
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.isVideo });
       setLocalStream(stream);
 
@@ -118,6 +135,9 @@ export const CallProvider = ({ children }) => {
       setCallState(prev => ({ ...prev, status: 'connected' }));
     } catch (err) {
       console.error("Failed to answer call", err);
+      if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
+        alert('Camera/Microphone access denied.\n\nPlease allow permissions or use HTTPS.');
+      }
       endCall();
     }
   };

@@ -24,11 +24,20 @@ export default function Login() {
       setMode('unlock');
     } else {
       // Auto-detect device name for registration
-      if (window.electronAPI) {
-        setName(window.electronAPI.getHostname());
-      } else {
-        setName(`User-${Math.floor(Math.random() * 1000)}`);
-      }
+      const detectName = async () => {
+        if (window.electronAPI) {
+          try {
+            const hostname = await window.electronAPI.getHostname();
+            setName(hostname);
+          } catch (err) {
+            console.error('Failed to get hostname:', err);
+            setName(`User-${Math.floor(Math.random() * 1000)}`);
+          }
+        } else {
+          setName(`User-${Math.floor(Math.random() * 1000)}`);
+        }
+      };
+      detectName();
     }
   }, [isRegistered]);
   const [name, setName] = useState('');
@@ -97,17 +106,17 @@ export default function Login() {
 
   return (
     <div style={styles.container}>
-      <div className="glass-panel" style={styles.cardWide}>
+      <div className="glass-panel login-card" style={styles.cardWide}>
         <div style={styles.header}>
-          <img src="/logo.png" alt="Lorapok Logo" style={styles.logo} />
-          <h1>Lorapok LocalSync</h1>
+          <img src="/logo-transparent.png" alt="Lorapok Logo" className="login-logo" style={styles.logo} />
+          <h1 className="login-title">Lorapok LocalSync</h1>
           <p>Secure encrypted communication for your local network</p>
         </div>
         
         <div style={styles.registerSplit}>
           <div style={styles.avatarSection}>
             <h3>Choose your Anime DP</h3>
-            <div style={styles.avatarGrid}>
+            <div className="avatar-grid" style={styles.avatarGrid}>
               {AVATARS.map((src) => (
                 <div 
                   key={src} 

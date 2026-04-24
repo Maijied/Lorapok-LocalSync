@@ -5,6 +5,7 @@ import { getMessagesByChatId, saveMessage } from '../utils/db';
 import { Send, Paperclip, Users, ArrowLeft } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import LinkPreview from './LinkPreview';
+import { getBackendUrlSync } from '../utils/api';
 
 export default function GroupChatWindow({ selectedGroup, onBack }) {
   const { user } = useAuth();
@@ -28,8 +29,12 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
 
     // Listen for incoming group messages
     const handleGroupMessage = async (data) => {
-      if (data.chatId === selectedGroup.id) {
-        setMessages(prev => [...prev, data]);
+      if (data.chatId === selectedGroup.id || data.groupId === selectedGroup.id) {
+        setMessages(prev => {
+          // Avoid duplicates
+          if (prev.find(m => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
         await saveMessage(data);
         scrollToBottom();
       } else {
@@ -37,10 +42,43 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
       }
     };
 
+    // Handle group history (previous messages for new members)
+    const handleGroupHistory = async (data) => {
+      if (data.groupId === selectedGroup.id && data.messages?.length > 0) {
+        const historyMsgs = data.messages.map(m => ({
+          id: m.id,
+          chatId: data.groupId,
+          groupId: data.groupId,
+          from: m.from_user_id || m.from,
+          fromName: m.fromName || m.from_user_id || 'Member',
+          text: m.content || m.text,
+          type: m.type || 'text',
+          timestamp: m.timestamp,
+        }));
+
+        // Merge with existing, avoiding duplicates
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const newMsgs = historyMsgs.filter(m => !existingIds.has(m.id));
+          if (newMsgs.length === 0) return prev;
+          
+          // Save new messages locally
+          newMsgs.forEach(msg => saveMessage(msg));
+          
+          const merged = [...newMsgs, ...prev];
+          merged.sort((a, b) => a.timestamp - b.timestamp);
+          return merged;
+        });
+        scrollToBottom();
+      }
+    };
+
     socket.on('group_message', handleGroupMessage);
+    socket.on('group_history', handleGroupHistory);
 
     return () => {
       socket.off('group_message', handleGroupMessage);
+      socket.off('group_history', handleGroupHistory);
     };
   }, [selectedGroup, socket]);
 
@@ -56,10 +94,10 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
 
     const newMsg = {
       id: uuidv4(),
-      chatId: selectedGroup.id, // Group ID is the chat ID
-      groupId: selectedGroup.id, // For backend routing
+      chatId: selectedGroup.id,
+      groupId: selectedGroup.id,
       from: user.id,
-      fromName: user.name, // To show sender's name in group chat
+      fromName: user.name,
       text: inputText,
       type: 'text',
       timestamp: Date.now(),
@@ -78,8 +116,7 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
     if (!file) return;
 
     try {
-      const host = window.location.hostname;
-      const baseUrl = `http://${host}:4000`;
+      const baseUrl = getBackendUrlSync();
       
       const formData = new FormData();
       formData.append('file', file);
@@ -117,9 +154,10 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
       }
     } catch (error) {
       console.error('Group upload failed:', error);
+      alert('File upload failed. Make sure the server is running.');
     }
     
-    e.target.value = null; // reset
+    e.target.value = null;
   };
 
   if (!selectedGroup) return null;
@@ -134,13 +172,15 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
           <div style={styles.avatar}><Users size={20} /></div>
           <div style={{flex: 1}}>
             <h3 style={{ margin: 0 }}>{selectedGroup.name}</h3>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                  {selectedGroup.members.length} members
                </p>
-               <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary-color)', fontWeight: 'bold' }}>
-                  KEY: {selectedGroup.secretKey}
-               </span>
+               {selectedGroup.secretKey && (
+                 <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary-color)', fontWeight: 'bold' }}>
+                   KEY: {selectedGroup.secretKey}
+                 </span>
+               )}
             </div>
           </div>
         </div>
@@ -168,7 +208,7 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
                   </div>
                 ) : msg.type === 'video' ? (
                   <div>
-                    <video src={msg.fileData} style={styles.imageAttachment} />
+                    <video src={msg.fileData} controls style={styles.imageAttachment} />
                   </div>
                 ) : msg.type === 'file' ? (
                   <a href={msg.fileData} download={msg.text} style={styles.fileLink}>
@@ -177,7 +217,7 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
                 ) : (
                   <div>
                     {msg.text}
-                    {msg.text.match(/(https?:\/\/[^\s]+)/g) && (
+                    {msg.text && msg.text.match(/(https?:\/\/[^\s]+)/g) && (
                        <LinkPreview url={msg.text.match(/(https?:\/\/[^\s]+)/g)[0]} />
                     )}
                   </div>
@@ -228,7 +268,7 @@ const styles = {
     width: '100%',
   },
   header: {
-    padding: '20px',
+    padding: '15px 20px',
     borderBottom: '1px solid var(--glass-border)',
     display: 'flex',
     alignItems: 'center',
@@ -238,16 +278,18 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
+    width: '100%',
   },
   avatar: {
     width: '40px',
     height: '40px',
     borderRadius: '50%',
-    backgroundColor: 'var(--primary-hover)',
+    backgroundColor: 'rgba(188, 19, 254, 0.3)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: 'white',
+    flexShrink: 0,
   },
   messageList: {
     flex: 1,
@@ -284,7 +326,7 @@ const styles = {
     textDecoration: 'underline',
   },
   inputArea: {
-    padding: '20px',
+    padding: '15px 20px',
     borderTop: '1px solid var(--glass-border)',
     display: 'flex',
     gap: '12px',
