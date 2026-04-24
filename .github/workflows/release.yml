@@ -1,4 +1,4 @@
-name: Build, Release and Deploy Website
+name: Build Software and Deploy Website
 
 on:
   push:
@@ -6,123 +6,127 @@ on:
       - 'v*'
 
 jobs:
-  # 1. Build Desktop Apps
-  build-desktop:
-    name: Build Desktop (${{ matrix.os }})
+  build-all:
+    name: Build Lorapok LocalSync
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
+    
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: 'npm'
           cache-dependency-path: frontend/package.json
+
       - name: Install Dependencies
-        run: cd frontend && npm install
-      - name: Build Web
-        run: cd frontend && npm run build
-      - name: Build Electron
-        run: cd frontend && npm run electron:build
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build Desktop Apps
+        run: |
+          cd frontend
+          npm run build
+          npm run electron:build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload Artifacts
+
+      - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-builds-${{ matrix.os }}
-          path: frontend/dist-electron/*
+          name: desktop-${{ matrix.os }}
+          path: frontend/dist-electron/*.{exe,dmg,AppImage}
 
-  # 2. Build Android App
   build-android:
-    name: Build Android
+    name: Build Android App
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-          cache-dependency-path: frontend/package.json
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-      - name: Install Dependencies
-        run: cd frontend && npm install
-      - name: Build Web
-        run: cd frontend && npm run build
-      - name: Capacitor Sync
-        run: cd frontend && npx cap sync android
+
       - name: Build Android APK
-        run: cd frontend/android && ./gradlew assembleDebug
-      - name: Upload APK
+        run: |
+          cd frontend
+          npm install
+          npm run build
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
 
-  # 3. Create GitHub Release
-  create-release:
-    name: Create GitHub Release
+  release-and-deploy:
+    name: Release Software & Deploy Website
     runs-on: ubuntu-latest
-    needs: [build-desktop, build-android]
-    permissions:
-      contents: write
-    steps:
-      - name: Download Desktop Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: desktop-builds-*
-          path: release-artifacts
-          merge-multiple: true
-
-      - name: Download Android Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: android-apk
-          path: release-artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            release-artifacts/*.exe
-            release-artifacts/*.dmg
-            release-artifacts/*.AppImage
-            release-artifacts/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # 4. Deploy GitHub Pages (Runs AFTER release is created)
-  deploy-pages:
-    name: Deploy to GitHub Pages
-    runs-on: ubuntu-latest
-    needs: [create-release]
+    needs: [build-all, build-android]
     permissions:
       contents: write
       pages: write
       id-token: write
+
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
         with:
-          node-version: 18
-      - name: Install Dependencies
-        run: cd frontend && npm install
-      - name: Build Web
-        run: cd frontend && npm run build
-      - name: Copy Assets & Landing Page
+          name: Lorapok LocalSync ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            desktop-windows-latest/*.exe
+            desktop-macos-latest/*.dmg
+            desktop-ubuntu-latest/*.AppImage
+            android-apk/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Web Build
         run: |
-          cp index.html frontend/dist/
-          cp style.css frontend/dist/
-          cp logo.png frontend/dist/
-          cp -r frontend/public/logo.png frontend/dist/logo.png
+          cd frontend
+          npm install
+          npm run build
+
+      - name: Inject Direct Download Links
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          # Note: Electron-builder naming can be Lorapok-LocalSync-Setup-VERSION.exe
+          # We use the actual release URL format
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+          
+          # Replace placeholders in the main landing page
+          sed -i "s|\[\[WIN_LINK\]\]|$BASE_URL/Lorapok-LocalSync-Setup-$VERSION.exe|g" index.html
+          sed -i "s|\[\[MAC_LINK\]\]|$BASE_URL/Lorapok-LocalSync-$VERSION.dmg|g" index.html
+          sed -i "s|\[\[LINUX_LINK\]\]|$BASE_URL/Lorapok-LocalSync-$VERSION.AppImage|g" index.html
+          sed -i "s|\[\[APK_LINK\]\]|$BASE_URL/app-debug.apk|g" index.html
+          
+          # Copy landing page to distribution folder
+          cp index.html style.css logo.png frontend/dist/
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
