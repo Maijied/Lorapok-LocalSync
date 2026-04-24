@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+
 
 class MessageQueue {
   constructor(database) {

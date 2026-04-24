@@ -2,6 +2,10 @@ import dgram from 'dgram';
 import { fork } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class HubManager {
   constructor(app) {

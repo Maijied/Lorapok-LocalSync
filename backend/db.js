@@ -194,7 +194,7 @@ class Database {
 
   // Message delivery methods
   async saveDeliveryStatus(messageId, recipientId, status) {
-    const id = crypto.randomUUID ? crypto.randomUUID() : require('uuid').v4();
+    const id = crypto.randomUUID();
     return this.run(
       'INSERT INTO message_delivery (id, message_id, recipient_id, status) VALUES (?, ?, ?, ?)',
       [id, messageId, recipientId, status]
@@ -229,7 +229,7 @@ class Database {
 
   // Message queue methods (for offline delivery)
   async queueMessage(messageId, recipientId) {
-    const id = crypto.randomUUID ? crypto.randomUUID() : require('uuid').v4();
+    const id = crypto.randomUUID();
     return this.run(
       'INSERT OR IGNORE INTO message_queue (id, message_id, recipient_id) VALUES (?, ?, ?)',
       [id, messageId, recipientId]
@@ -279,7 +279,7 @@ class Database {
 
   // Group members methods
   async addGroupMember(groupId, userId) {
-    const id = crypto.randomUUID ? crypto.randomUUID() : require('uuid').v4();
+    const id = crypto.randomUUID();
     return this.run(
       'INSERT OR IGNORE INTO group_members (id, group_id, user_id) VALUES (?, ?, ?)',
       [id, groupId, userId]
