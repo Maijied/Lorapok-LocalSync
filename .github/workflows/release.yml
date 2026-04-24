@@ -2,8 +2,11 @@ name: Build Software and Deploy Website
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-all:
@@ -90,21 +93,6 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: Lorapok LocalSync ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          files: |
-            desktop-windows-latest/*.exe
-            desktop-macos-latest/*.dmg
-            desktop-ubuntu-latest/*.AppImage
-            android-apk/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Setup Web Build
         run: |
           cd frontend
@@ -113,10 +101,16 @@ jobs:
 
       - name: Inject Direct Download Links
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          # Note: Electron-builder naming can be Lorapok-LocalSync-Setup-VERSION.exe
-          # We use the actual release URL format
-          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+          # Get version from package.json
+          VERSION=$(node -p "require('./frontend/package.json').version")
+          
+          # If this is a tag push, use the tag name. Otherwise use 'latest' or the version
+          TAG_NAME="${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}"
+          
+          # Fallback if no tag: we will use the version from package.json in the links
+          # Note: filenames in package.json are Lorapok-LocalSync-Setup-${version}.exe
+          
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME"
           
           # Replace placeholders in the main landing page
           sed -i "s|\[\[WIN_LINK\]\]|$BASE_URL/Lorapok-LocalSync-Setup-$VERSION.exe|g" index.html
@@ -126,6 +120,21 @@ jobs:
           
           # Copy landing page to distribution folder
           cp index.html style.css logo.png frontend/dist/
+
+      - name: Create or Update Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
+          name: Lorapok LocalSync ${{ github.ref_type == 'tag' && github.ref_name || 'Latest Build' }}
+          draft: false
+          prerelease: false
+          files: |
+            desktop-windows-latest/*.exe
+            desktop-macos-latest/*.dmg
+            desktop-ubuntu-latest/*.AppImage
+            android-apk/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

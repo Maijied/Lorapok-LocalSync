@@ -198,7 +198,29 @@ header::after {
     flex: 1;
     display: flex;
     justify-content: center;
+    align-items: center;
     perspective: 2000px;
+    position: relative;
+}
+
+.mascot-container {
+    position: absolute;
+    top: -60px;
+    right: 20px;
+    z-index: 10;
+}
+
+.floating-larva {
+    width: 180px;
+    height: 180px;
+    object-fit: contain;
+    animation: float-larva 5s infinite ease-in-out;
+    filter: drop-shadow(0 0 20px var(--primary-glow));
+}
+
+@keyframes float-larva {
+    0%, 100% { transform: translateY(0) rotate(5deg); }
+    50% { transform: translateY(-30px) rotate(-5deg); }
 }
 
 @keyframes float {
