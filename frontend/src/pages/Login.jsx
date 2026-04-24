@@ -67,19 +67,21 @@ export default function Login() {
             <div style={styles.dpLarge}>
               <img src={user?.dp} alt="avatar" style={styles.dpImg} />
             </div>
-            <h2>Welcome back, {user?.name}</h2>
-            <p>Enter your 4-digit PIN to unlock</p>
+            <h2 style={styles.welcomeText}>Welcome back, {user?.name}</h2>
+            <p style={styles.subtitleText}>Enter your 4-digit PIN to unlock</p>
           </div>
           <form onSubmit={handleUnlock} style={styles.form}>
-            <input
-              type="password"
-              className="input-field"
-              placeholder="0 0 0 0"
-              maxLength={4}
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              style={styles.pinInput}
-            />
+            <div style={styles.pinWrapper}>
+              <input
+                type="password"
+                className="input-field"
+                placeholder="••••"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                style={styles.pinInput}
+              />
+            </div>
 
             <div style={styles.rememberMeContainer}>
               <input
@@ -184,22 +186,40 @@ const styles = {
   },
   card: {
     width: '100%',
-    maxWidth: '400px',
-    padding: '40px',
+    maxWidth: '420px',
+    padding: '48px 40px',
     textAlign: 'center',
-    border: '1px solid rgba(0, 243, 255, 0.2)',
+    background: 'linear-gradient(145deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.95) 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    borderRadius: '24px',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
   },
   cardWide: {
     width: '100%',
     maxWidth: '900px',
     padding: '40px',
-    border: '1px solid rgba(0, 243, 255, 0.2)',
+    background: 'linear-gradient(145deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.95) 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    borderRadius: '24px',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
   },
   header: {
-    marginBottom: '30px',
+    marginBottom: '32px',
     textAlign: 'center',
+  },
+  welcomeText: {
+    fontSize: '1.5rem',
+    fontWeight: '700',
+    color: 'var(--text-light)',
+    margin: '16px 0 8px 0',
+    letterSpacing: '0.5px',
+  },
+  subtitleText: {
+    color: 'var(--text-muted)',
+    fontSize: '0.95rem',
     textTransform: 'uppercase',
-    letterSpacing: '4px',
+    letterSpacing: '2px',
+    fontWeight: '600',
   },
   logo: {
     width: '80px',
@@ -208,14 +228,18 @@ const styles = {
     objectFit: 'contain',
   },
   dpLarge: {
-    width: '100px',
-    height: '100px',
-    borderRadius: '4px',
-    backgroundColor: 'var(--bg-surface)',
-    margin: '0 auto 20px',
+    width: '110px',
+    height: '110px',
+    borderRadius: '50%',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    margin: '0 auto 24px',
     overflow: 'hidden',
-    border: '2px solid var(--primary-color)',
-    boxShadow: '0 0 20px rgba(0, 243, 255, 0.3)',
+    border: '3px solid transparent',
+    backgroundImage: 'linear-gradient(var(--bg-surface), var(--bg-surface)), linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
+    backgroundOrigin: 'border-box',
+    backgroundClip: 'content-box, border-box',
+    boxShadow: '0 10px 30px rgba(0, 243, 255, 0.2)',
+    padding: '4px',
   },
   dpImg: {
     width: '100%',
@@ -225,16 +249,26 @@ const styles = {
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px',
+    gap: '24px',
+  },
+  pinWrapper: {
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: '12px',
+    padding: '4px',
+    border: '1px solid rgba(255,255,255,0.05)',
   },
   pinInput: {
     textAlign: 'center',
-    fontSize: '28px',
-    letterSpacing: '12px',
-    fontWeight: '800',
+    fontSize: '32px',
+    letterSpacing: '24px',
+    fontWeight: '900',
     color: 'var(--primary-color)',
-    borderBottom: '2px solid var(--primary-color)',
+    border: 'none',
     backgroundColor: 'transparent',
+    boxShadow: 'none',
+    padding: '16px 0',
+    width: '100%',
+    textShadow: '0 0 10px rgba(0, 243, 255, 0.5)',
   },
   button: {
     marginTop: '10px',
@@ -287,14 +321,18 @@ const styles = {
     gap: '20px',
   },
   selectedPreview: {
-    width: '120px',
-    height: '120px',
-    borderRadius: '4px',
-    backgroundColor: 'var(--bg-surface)',
+    width: '130px',
+    height: '130px',
+    borderRadius: '50%',
+    backgroundColor: 'rgba(255,255,255,0.03)',
     margin: '0 auto',
     overflow: 'hidden',
-    border: '3px solid var(--primary-color)',
-    boxShadow: '0 0 25px rgba(0, 243, 255, 0.4)',
+    border: '3px solid transparent',
+    backgroundImage: 'linear-gradient(var(--bg-surface), var(--bg-surface)), linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
+    backgroundOrigin: 'border-box',
+    backgroundClip: 'content-box, border-box',
+    boxShadow: '0 10px 30px rgba(0, 243, 255, 0.2)',
+    padding: '4px',
   },
   dpPreview: {
     width: '100%',
@@ -317,10 +355,11 @@ const styles = {
     color: 'var(--text-muted)',
   },
   checkbox: {
-    width: '16px',
-    height: '16px',
+    width: '18px',
+    height: '18px',
     cursor: 'pointer',
     accentColor: 'var(--primary-color)',
+    borderRadius: '4px',
   },
   rememberMeLabel: {
     cursor: 'pointer',
