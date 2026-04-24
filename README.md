@@ -1,61 +1,91 @@
-# 🌐 Lorapok LocalSync
+# 🐛 Lorapok Communicator
+### Decentralized, Encrypted Local Network Chat
 
-**Secure, Serverless, Router-Based Communication for Local Networks.**
+![Lorapok Logo](logo.png)
 
-[![Deploy GitHub Pages](https://github.com/Maijied/Lorapok-LocalSync/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/Maijied/Lorapok-LocalSync/actions/workflows/deploy-pages.yml)
-![Lorapok Banner](https://img.shields.io/badge/Lorapok-LocalSync-6366f1?style=for-the-badge&logo=appveyor)
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+[![Release](https://img.shields.io/github/v/release/Maijied/Lorapok-LocalSync?style=for-the-badge)](https://github.com/Maijied/Lorapok-LocalSync/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/Maijied/Lorapok-LocalSync/release.yml?style=for-the-badge)](https://github.com/Maijied/Lorapok-LocalSync/actions)
+[![License](https://img.shields.io/github/license/Maijied/Lorapok-LocalSync?style=for-the-badge)](LICENSE)
 
-Lorapok LocalSync is a high-performance, privacy-focused communication platform designed to work exclusively on your local router's network. No internet required, no external servers, just pure peer-to-peer and local-first interaction.
-
-## ✨ Features
-
-- 🔒 **PIN-Based Security**: Secure your local identity with a 4-digit PIN.
-- 🎭 **Anime Avatars**: Choose from 60+ built-in anime and animal DPs (works 100% offline).
-- 💬 **Private & Group Messaging**: Real-time communication with local persistent history (IndexedDB).
-- 🔑 **Group Secret Keys**: Join private groups instantly using a 6-character unique key.
-- 📩 **Private Invitations**: Send direct group invites to your contacts.
-- 📞 **HD Voice & Video Calls**: Direct peer-to-peer calls using WebRTC technology.
-- 📁 **File Sharing**: Share documents and images directly over your Wi-Fi.
-- 🌈 **Glassmorphism UI**: A stunning, premium dark-mode interface.
-- 📱 **Mobile Responsive**: Perfect experience on iOS and Android browsers.
-
-## 🚀 One-Click Installation
-
-### Windows
-1. Double-click **`install.bat`**
-2. Wait for the success message.
-3. Choose **`y`** to start the app instantly!
-
-### Linux & macOS
-1. Open terminal in the project folder.
-2. Run **`bash install.sh`**
-3. Choose **`y`** to start the app instantly!
-
-## 📖 How to Use
-
-1. **Host Setup**: Start the app on your main PC using `npm run dev`.
-2. **Access**: Open `http://localhost:5173` on the host.
-3. **Mobile Connection**: 
-   - Find your PC's Local IP (e.g., `192.168.0.219`).
-   - Open `http://192.168.0.219:5173` on your phone.
-   - *Tip: Click the **Help (?)** icon in the dashboard for a full visual guide.*
-
-## 🛠️ Architecture
-
-```mermaid
-graph TD
-    A[User Device A] <-->|Socket.IO Signaling| B(Local Router / Vite Server)
-    B <-->|Socket.IO Signaling| C[User Device B]
-    A <-->|WebRTC P2P Media| C
-    A ---|IndexedDB| D[(Local Storage A)]
-    C ---|IndexedDB| E[(Local Storage B)]
-```
-
-## 🧪 CI/CD
-This project uses **GitHub Actions** to automatically deploy the official landing page to GitHub Pages whenever changes are made to the `docs/` folder.
+**Lorapok** is a high-performance communication platform designed for privacy-conscious users who need secure messaging over a local router (LAN/Wi-Fi) without any internet connection. No servers, no tracking, just pure peer-to-peer (P2P) interaction.
 
 ---
-Built with ❤️ for decentralized communication.  
-**Official Site:** [https://maijied.github.io/Lorapok-LocalSync/](https://maijied.github.io/Lorapok-LocalSync/)
+
+## 🚀 Key Features
+
+- **🔐 End-to-End Encryption**: Powered by the native Web Crypto API (AES-256-GCM) and secure PIN-based session unlocking.
+- **📁 Advanced Media System**: Chunked file uploads for sharing high-quality images and videos instantly over your local network.
+- **📞 P2P HD Calling**: Ultra-low latency voice and video calls using WebRTC.
+- **🔍 Global Full-Text Search**: Find any message or contact instantly with an indexed local search.
+- **📶 QR Sync**: Seamlessly connect mobile devices to your local host by scanning a QR code.
+- **🔄 Offline Sync Manager**: Queue messages while offline; they'll automatically sync as soon as you reconnect to the router.
+
+---
+
+## 💻 Platforms
+
+| Windows | macOS | Linux | Android | iOS |
+| :---: | :---: | :---: | :---: | :---: |
+| ✅ | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+## 🛠 Installation & Setup
+
+### Prerequisites
+- Node.js (v18+)
+- Local Wi-Fi Router
+
+### For Developers
+1. **Clone the Repo**:
+   ```bash
+   git clone https://github.com/Maijied/Lorapok-LocalSync.git
+   cd Lorapok-LocalSync
+   ```
+
+2. **Setup Backend**:
+   ```bash
+   cd backend
+   npm install
+   npm start
+   ```
+
+3. **Setup Frontend**:
+   ```bash
+   cd ../frontend
+   npm install
+   npm run dev
+   ```
+
+---
+
+## 🛡 Security Architecture
+
+Lorapok follows a "Zero-Trust" local model:
+1. **Local Storage**: All messages and cryptographic keys are stored in IndexedDB (frontend) and SQLite (backend) on your local machine.
+2. **Key Exchange**: Uses Diffie-Hellman inspired local key exchange for group encryption.
+3. **No External API**: The app never connects to the global internet, making it immune to remote data breaches.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+<p align="center">
+  Built with ❤️ for the privacy-conscious community.
+</p>
