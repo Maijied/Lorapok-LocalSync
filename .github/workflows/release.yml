@@ -32,9 +32,15 @@ jobs:
           npm ci
 
       - name: Build Desktop Apps
+        shell: bash
         run: |
           cd frontend
-          npm run electron:build
+          case "${{ matrix.os }}" in
+            "windows-latest") TARGET="--win" ;;
+            "macos-latest")   TARGET="--mac" ;;
+            "ubuntu-latest")  TARGET="--linux" ;;
+          esac
+          npm run electron:build -- $TARGET
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -115,20 +121,23 @@ jobs:
         run: |
           # Get version from package.json
           VERSION=$(node -p "require('./frontend/package.json').version")
+          echo "Building version: $VERSION"
           
-          # If this is a tag push, use the tag name. Otherwise use 'latest' or the version
+          # If this is a tag push, use the tag name. Otherwise use 'latest'
           TAG_NAME="${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}"
-          
-          # Fallback if no tag: we will use the version from package.json in the links
-          # Note: filenames in package.json are Lorapok-LocalSync-Setup-${version}.exe
+          echo "Target Release Tag: $TAG_NAME"
           
           BASE_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME"
+          echo "Base Download URL: $BASE_URL"
           
-          # Replace placeholders in the main landing page
-          sed -i "s|\[\[WIN_LINK\]\]|$BASE_URL/Lorapok-LocalSync-Setup-$VERSION.exe|g" index.html
-          sed -i "s|\[\[MAC_LINK\]\]|$BASE_URL/Lorapok-LocalSync-$VERSION.dmg|g" index.html
-          sed -i "s|\[\[LINUX_LINK\]\]|$BASE_URL/Lorapok-LocalSync-$VERSION.AppImage|g" index.html
-          sed -i "s|\[\[APK_LINK\]\]|$BASE_URL/app-debug.apk|g" index.html
+          # Replace placeholders using @ as delimiter for safety
+          sed -i "s@\[\[WIN_LINK\]\]@$BASE_URL/Lorapok-LocalSync-Setup-$VERSION.exe@g" index.html
+          sed -i "s@\[\[MAC_LINK\]\]@$BASE_URL/Lorapok-LocalSync-$VERSION.dmg@g" index.html
+          sed -i "s@\[\[LINUX_LINK\]\]@$BASE_URL/Lorapok-LocalSync-$VERSION.AppImage@g" index.html
+          sed -i "s@\[\[APK_LINK\]\]@$BASE_URL/app-debug.apk@g" index.html
+          
+          # Debug: show injected links (optional)
+          grep -E "WIN_LINK|MAC_LINK|LINUX_LINK|APK_LINK" index.html || echo "Placeholders replaced."
           
           # Copy landing page to distribution folder
           cp index.html style.css logo.svg frontend/dist/
