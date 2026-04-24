@@ -165,6 +165,46 @@ const setupSocket = (io, database, messageQueue, encryptionManager) => {
         io.to(recipientSocket[0]).emit('ice-candidate', data);
       }
     });
+
+    socket.on('end_call', (data) => {
+      const recipientSocket = Array.from(connectedUsers.entries()).find(([id, user]) => user.id === data.to);
+      if (recipientSocket) {
+        io.to(recipientSocket[0]).emit('end_call', data);
+      }
+    });
+
+    socket.on('reject_call', (data) => {
+      const recipientSocket = Array.from(connectedUsers.entries()).find(([id, user]) => user.id === data.to);
+      if (recipientSocket) {
+        io.to(recipientSocket[0]).emit('reject_call', data);
+      }
+    });
+
+    socket.on('call_log', async (data) => {
+      // data: { id, from, to, text, type: 'call-log', timestamp }
+      if (database) {
+        try {
+          await database.saveMessage({
+            id: data.id,
+            from: data.from,
+            to: data.to,
+            groupId: null,
+            content: data.text,
+            encrypted: false,
+            status: 'sent',
+            timestamp: data.timestamp
+          });
+        } catch (e) {
+          console.error('Error saving call log:', e);
+        }
+      }
+      
+      // Notify recipient if online so they see the log
+      const recipientSocketId = userSocketMap.get(data.to);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('private_message', data);
+      }
+    });
     // Group Chat Signaling
     socket.on('create_group', async (groupData) => {
       // Generate a 6-char secret key if not present

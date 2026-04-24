@@ -62,6 +62,9 @@ class MessageQueue {
 
             deliveredMessages.push(message);
             console.log(`Delivered queued message ${message.id} to user ${userId}`);
+            
+            // Small delay to prevent overwhelming the socket/UI
+            await new Promise(resolve => setTimeout(resolve, 50));
           }
         } catch (error) {
           console.error(`Error delivering queued message ${queuedMsg.message_id}:`, error);

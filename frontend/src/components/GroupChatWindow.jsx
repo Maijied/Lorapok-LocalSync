@@ -26,6 +26,9 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
       const localMessages = await getMessagesByChatId(selectedGroup.id);
       setMessages(localMessages);
       scrollToBottom();
+      
+      // Also request latest history from server to stay in sync
+      socket.emit('join_group', selectedGroup.id);
     };
     
     loadMessages();

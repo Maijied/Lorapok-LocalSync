@@ -9,6 +9,31 @@ const __dirname = path.dirname(__filename);
 const hubManager = new HubManager(app);
 let discoveredHub = null;
 
+app.commandLine.appendSwitch('ignore-certificate-errors');
+
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+  // Bypass self-signed certificate errors in development
+  event.preventDefault();
+  callback(true);
+});
+
+// Auto-grant media permissions in Electron
+import { session } from 'electron';
+
+app.on('ready', () => {
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    if (permission === 'media' || permission === 'audio' || permission === 'video') return true;
+    return false;
+  });
+
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'media' || permission === 'audio' || permission === 'video') {
+      return callback(true);
+    }
+    callback(false);
+  });
+});
+
 let mainWindow;
 let splashWindow;
 
@@ -46,7 +71,6 @@ function createWindow() {
   const isDev = !app.isPackaged;
 
   if (isDev) {
-    app.commandLine.appendSwitch('ignore-certificate-errors');
     mainWindow.loadURL('https://127.0.0.1:5173');
     mainWindow.webContents.openDevTools();
   } else {

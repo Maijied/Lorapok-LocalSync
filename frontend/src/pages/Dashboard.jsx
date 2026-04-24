@@ -4,8 +4,10 @@ import { useSocket } from '../context/SocketContext';
 import { getGroups, saveGroup } from '../utils/db';
 import ChatWindow from '../components/ChatWindow';
 import GroupChatWindow from '../components/GroupChatWindow';
+import Logo from '../components/Logo';
 import { v4 as uuidv4 } from 'uuid';
 import { LogOut, HelpCircle, Key, Users, Info, ArrowRight } from 'lucide-react';
+import { formatAssetUrl } from '../utils/api';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -15,6 +17,8 @@ export default function Dashboard() {
   
   const [groups, setGroups] = useState([]);
   const [publicGroups, setPublicGroups] = useState([]);
+  const [unreadCounts, setUnreadCounts] = useState({}); // { chatId -> count }
+  
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [isJoiningWithKey, setIsJoiningWithKey] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -35,11 +39,24 @@ export default function Dashboard() {
     };
     loadGroups();
 
+    const handleMessage = (msg) => {
+      // Check if message is from someone not currently selected
+      const isCurrentChat = (selectedUser && msg.from === selectedUser.id) || 
+                          (selectedGroup && msg.groupId === selectedGroup.id);
+      
+      if (!isCurrentChat) {
+        const chatId = msg.groupId || msg.from;
+        setUnreadCounts(prev => ({
+          ...prev,
+          [chatId]: (prev[chatId] || 0) + 1
+        }));
+      }
+    };
+
     const handleGroupCreated = async (groupData) => {
       setGroups(prev => {
         const existing = prev.find(g => g.id === groupData.id);
         if (existing) {
-          // Update existing group with potentially missing data (like secretKey)
           const updated = { ...existing, ...groupData };
           saveGroup(updated);
           return prev.map(g => g.id === groupData.id ? updated : g);
@@ -55,14 +72,30 @@ export default function Dashboard() {
       setPublicGroups(pgroups);
     };
 
+    socket.on('private_message', handleMessage);
+    socket.on('group_message', handleMessage);
     socket.on('group_created', handleGroupCreated);
     socket.on('public_groups_update', handlePublicGroupsUpdate);
 
     return () => {
+      socket.off('private_message', handleMessage);
+      socket.off('group_message', handleMessage);
       socket.off('group_created', handleGroupCreated);
       socket.off('public_groups_update', handlePublicGroupsUpdate);
     };
-  }, [socket]);
+  }, [socket, selectedUser, selectedGroup]);
+
+  // Clear unread count when chat is selected
+  useEffect(() => {
+    const activeId = selectedUser?.id || selectedGroup?.id;
+    if (activeId && unreadCounts[activeId]) {
+      setUnreadCounts(prev => {
+        const next = { ...prev };
+        delete next[activeId];
+        return next;
+      });
+    }
+  }, [selectedUser, selectedGroup]);
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();
@@ -111,7 +144,7 @@ export default function Dashboard() {
       {showHelp && (
         <div style={styles.modalOverlay} onClick={() => setShowHelp(false)}>
           <div className="glass-panel" style={styles.modal} onClick={e => e.stopPropagation()}>
-            <h2 style={{color: 'var(--primary-color)', marginBottom: '20px'}}>How to Use Lorapok</h2>
+            <h2 style={{color: 'var(--primary-color)', marginBottom: '20px'}}>How to Use LocalSync</h2>
             <div style={styles.helpGrid}>
               <div style={styles.helpItem}>
                 <Key size={24} color="var(--primary-color)" />
@@ -144,8 +177,8 @@ export default function Dashboard() {
         <div style={styles.header}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-              <img src="./logo-transparent.png" alt="Logo" style={{width: '32px', height: '32px', objectFit: 'contain'}} />
-              <h2 style={{margin: 0, fontSize: '1.2rem'}}>Lorapok Chats</h2>
+              <Logo size={32} />
+              <h2 style={{margin: 0, fontSize: '1.2rem', fontWeight: 800, letterSpacing: '0.5px'}}>LocalSync</h2>
             </div>
             <HelpCircle size={20} style={{cursor: 'pointer', opacity: 0.7}} onClick={() => setShowHelp(true)} />
           </div>
@@ -153,15 +186,15 @@ export default function Dashboard() {
         
         <div style={styles.userList}>
           {/* Groups Section */}
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 8px'}}>
             <h3 style={styles.sectionTitle}>Groups</h3>
             <div style={{display: 'flex', gap: '8px'}}>
               <button 
                 className="btn-primary" 
-                style={{...styles.smallBtn, backgroundColor: 'var(--bg-surface)'}} 
+                style={{...styles.smallBtn, backgroundColor: 'rgba(255,255,255,0.05)', color: 'white'}} 
                 onClick={() => setIsJoiningWithKey(!isJoiningWithKey)}
               >
-                Key
+                <Key size={14} />
               </button>
               <button 
                 className="btn-primary" 
@@ -205,7 +238,7 @@ export default function Dashboard() {
                   checked={isPublicGroup} 
                   onChange={(e) => setIsPublicGroup(e.target.checked)}
                 />
-                Make Public (Anyone can join)
+                Make Public
               </label>
               {!isPublicGroup && (
                 <div style={styles.memberSelectScroll}>
@@ -232,28 +265,28 @@ export default function Dashboard() {
           {groups.map(g => (
             <div 
               key={g.id} 
-              style={{
-                ...styles.userItem,
-                backgroundColor: selectedGroup?.id === g.id ? 'rgba(99, 102, 241, 0.2)' : 'transparent'
-              }}
+              className={`chat-list-item ${selectedGroup?.id === g.id ? 'active' : ''}`}
               onClick={() => { setSelectedGroup(g); setSelectedUser(null); }}
             >
               <div style={styles.avatarItemMini}>G</div>
-              <span>{g.name}</span>
+              <span style={{flex: 1}}>{g.name}</span>
+              {unreadCounts[g.id] > 0 && (
+                <span className="unread-badge">{unreadCounts[g.id]}</span>
+              )}
             </div>
           ))}
 
           {/* Public Groups Not Joined */}
           {publicGroups.filter(pg => !groups.find(g => g.id === pg.id)).length > 0 && (
             <>
-              <h3 style={{...styles.sectionTitle, marginTop: '16px'}}>Discover Public Groups</h3>
+              <h3 style={{...styles.sectionTitle, marginTop: '16px', padding: '0 8px'}}>Public Groups</h3>
               {publicGroups.filter(pg => !groups.find(g => g.id === pg.id)).map(pg => (
-                <div key={pg.id} style={styles.userItem}>
+                <div key={pg.id} className="chat-list-item">
                   <div style={{...styles.avatarItemMini, backgroundColor: '#64748b'}}>P</div>
                   <span style={{flex: 1}}>{pg.name}</span>
                   <button 
                     className="btn-primary" 
-                    style={{...styles.smallBtn, fontSize: '0.8rem', padding: '4px 8px'}} 
+                    style={{...styles.smallBtn, fontSize: '0.7rem', padding: '4px 8px'}} 
                     onClick={() => joinPublicGroup(pg.id)}
                   >
                     Join
@@ -266,23 +299,23 @@ export default function Dashboard() {
           <hr style={styles.divider} />
 
           {/* Online Users Section */}
-          <h3 style={styles.sectionTitle}>Online on Router</h3>
+          <h3 style={{...styles.sectionTitle, padding: '0 8px'}}>Online Users</h3>
           {onlineUsers.length === 0 ? (
-            <p style={styles.noUsers}>No one else is online right now.</p>
+            <p style={styles.noUsers}>No one else is online.</p>
           ) : (
             onlineUsers.map(u => (
               <div 
                 key={u.id} 
-                style={{
-                  ...styles.userItem,
-                  backgroundColor: selectedUser?.id === u.id ? 'rgba(99, 102, 241, 0.2)' : 'transparent'
-                }}
+                className={`chat-list-item ${selectedUser?.id === u.id ? 'active' : ''}`}
                 onClick={() => { setSelectedUser(u); setSelectedGroup(null); }}
               >
                 <div style={styles.avatarCircle}>
-                  <img src={u.dp} alt="avatar" style={styles.avatarImg} />
+                  <img src={formatAssetUrl(u.dp)} alt="avatar" style={styles.avatarImg} />
                 </div>
-                <span>{u.name}</span>
+                <span style={{flex: 1}}>{u.name}</span>
+                {unreadCounts[u.id] > 0 && (
+                  <span className="unread-badge">{unreadCounts[u.id]}</span>
+                )}
                 <span style={styles.onlineIndicator}></span>
               </div>
             ))
@@ -291,9 +324,12 @@ export default function Dashboard() {
         
         <div style={styles.profileSection}>
           <div style={styles.avatarCircle}>
-             <img src={user.dp} alt="my-avatar" style={styles.avatarImg} />
+             <img src={formatAssetUrl(user.dp)} alt="my-avatar" style={styles.avatarImg} />
           </div>
-          <span>{user.name} (You)</span>
+          <div style={{display: 'flex', flexDirection: 'column'}}>
+            <span style={{fontWeight: 700}}>{user.name}</span>
+            <span style={{fontSize: '0.7rem', color: 'var(--primary-color)'}}>Online</span>
+          </div>
         </div>
       </div>
       
@@ -304,8 +340,12 @@ export default function Dashboard() {
           <ChatWindow selectedUser={selectedUser} onBack={() => setSelectedUser(null)} />
         ) : (
           <div style={styles.emptyState}>
-            <h3>Select a user or group to start chatting</h3>
-            <p>End-to-end local network communication</p>
+            <div className="glass-panel" style={{padding: '50px 40px', borderRadius: '32px', textAlign: 'center', maxWidth: '400px'}}>
+               <Logo size={100} style={{marginBottom: '24px'}} />
+               <h3 style={{fontSize: '1.8rem', color: 'var(--primary-color)', marginBottom: '8px'}}>LocalSync</h3>
+               <p style={{opacity: 0.8, fontSize: '0.9rem', fontWeight: 600}}>A Product of Lorapok</p>
+               <p style={{opacity: 0.5, fontSize: '0.8rem', marginTop: '12px'}}>Secure encrypted communication for your local network</p>
+            </div>
           </div>
         )}
       </div>

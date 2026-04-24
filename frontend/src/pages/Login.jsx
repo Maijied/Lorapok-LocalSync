@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, User, Camera } from 'lucide-react';
+import Logo from '../components/Logo';
 
 const AVATARS = Array.from({ length: 60 }, (_, i) => {
   if (i < 50) return `./avatars/anime_${i + 1}.svg`;
@@ -68,7 +69,7 @@ export default function Login() {
               <img src={user?.dp} alt="avatar" style={styles.dpImg} />
             </div>
             <h2 style={styles.welcomeText}>Welcome back, {user?.name}</h2>
-            <p style={styles.subtitleText}>Enter your 4-digit PIN to unlock</p>
+            <p style={styles.subtitleText}>Enter your 4-digit PIN to unlock LocalSync</p>
           </div>
           <form onSubmit={handleUnlock} style={styles.form}>
             <div style={styles.pinWrapper}>
@@ -92,13 +93,13 @@ export default function Login() {
                 style={styles.checkbox}
               />
               <label htmlFor="rememberMe" style={styles.rememberMeLabel}>
-                Remember me for 30 days (don't ask for PIN)
+                Remember me for 30 days
               </label>
             </div>
 
             {error && <p style={styles.error}>{error}</p>}
             <button type="submit" className="btn-primary" style={styles.button}>
-              Unlock Lorapok
+              Unlock LocalSync
             </button>
           </form>
         </div>
@@ -110,9 +111,10 @@ export default function Login() {
     <div style={styles.container}>
       <div className="glass-panel login-card" style={styles.cardWide}>
         <div style={styles.header}>
-          <img src="./logo-transparent.png" alt="Lorapok Logo" className="login-logo" style={styles.logo} />
-          <h1 className="login-title">Lorapok LocalSync</h1>
-          <p>Secure encrypted communication for your local network</p>
+          <Logo size={80} style={{margin: '0 auto 20px'}} />
+          <h1 className="login-title">LocalSync</h1>
+          <p style={{opacity: 0.8, fontWeight: 600, fontSize: '0.9rem'}}>A Product of Lorapok</p>
+          <p style={{fontSize: '0.8rem', marginTop: '6px', opacity: 0.5}}>Secure encrypted communication for your local network</p>
         </div>
         
         <div style={styles.registerForm}>

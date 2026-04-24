@@ -12,6 +12,13 @@ let _cachedBaseUrl = null;
 export async function getBackendUrl() {
   if (_cachedBaseUrl !== null) return _cachedBaseUrl;
 
+  // If we are on HTTPS, we MUST use relative paths to avoid Mixed Content blocks
+  // especially when connecting to IP addresses which browsers won't auto-upgrade.
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    _cachedBaseUrl = '';
+    return _cachedBaseUrl;
+  }
+
   // In Electron, ask the main process for the discovered Hub IP
   if (window.electronAPI?.getHubIp) {
     try {
@@ -25,7 +32,6 @@ export async function getBackendUrl() {
     }
   }
 
-  // For web browsers: use relative path to utilize Vite proxy or Native proxy
   _cachedBaseUrl = '';
   return _cachedBaseUrl;
 }
@@ -37,4 +43,25 @@ export function getBackendUrlSync() {
 
 export function getSocketUrl() {
   return getBackendUrlSync();
+}
+
+/**
+ * Ensures an asset URL (like a profile picture or upload) is safe for the current environment.
+ * Fixes Mixed Content errors on HTTPS by converting absolute HTTP URLs to relative paths.
+ */
+export function formatAssetUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('data:')) return url; // Base64
+  if (url.startsWith('blob:')) return url; // Blobs
+  
+  // If we are on HTTPS, strip the domain part if it's an absolute URL to 127.0.0.1 or similar
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    if (url.startsWith('http://')) {
+      // Find the start of the path (after the domain)
+      const urlObj = new URL(url);
+      return urlObj.pathname; // Returns "/uploads/..."
+    }
+  }
+  
+  return url;
 }

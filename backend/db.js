@@ -40,7 +40,7 @@ class Database {
           content TEXT NOT NULL,
           encrypted BOOLEAN DEFAULT 0,
           status TEXT DEFAULT 'sent',
-          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          timestamp INTEGER DEFAULT (strftime('%s', 'now') * 1000),
           FOREIGN KEY(from_user_id) REFERENCES users(id),
           FOREIGN KEY(to_user_id) REFERENCES users(id)
         )
@@ -160,7 +160,7 @@ class Database {
     const { id, from, to, groupId, content, encrypted, status, timestamp } = messageData;
     return this.run(
       'INSERT INTO messages (id, from_user_id, to_user_id, group_id, content, encrypted, status, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, from, to, groupId, content, encrypted ? 1 : 0, status, timestamp]
+      [id, from, to, groupId, content, encrypted ? 1 : 0, status, timestamp || Date.now()]
     );
   }
 

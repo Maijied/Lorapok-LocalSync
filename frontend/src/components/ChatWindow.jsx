@@ -9,7 +9,7 @@ import { getGroups } from '../utils/db';
 import TypingIndicator from './TypingIndicator';
 import MediaViewer from './MediaViewer';
 import LinkPreview from './LinkPreview';
-import { getBackendUrlSync } from '../utils/api';
+import { getBackendUrlSync, formatAssetUrl } from '../utils/api';
 
 export default function ChatWindow({ selectedUser, onBack }) {
   const { user } = useAuth();
@@ -321,7 +321,7 @@ export default function ChatWindow({ selectedUser, onBack }) {
             <ArrowLeft size={24} />
           </button>
           <div style={styles.avatarCircle}>
-             <img src={selectedUser.dp} alt="avatar" style={styles.avatarImg} />
+             <img src={formatAssetUrl(selectedUser.dp)} alt="avatar" style={styles.avatarImg} />
           </div>
           <h3>{selectedUser.name}</h3>
         </div>
@@ -367,12 +367,12 @@ export default function ChatWindow({ selectedUser, onBack }) {
                 borderBottomLeftRadius: isMine ? '16px' : '4px',
               }}>
                 {msg.type === 'image' ? (
-                  <div onClick={() => setSelectedMedia({ url: msg.fileData, name: msg.text, type: 'image' })} style={{cursor: 'pointer'}}>
-                    <img src={msg.fileData} alt="attachment" style={styles.imageAttachment} />
+                  <div onClick={() => setSelectedMedia({ url: formatAssetUrl(msg.fileData), name: msg.text, type: 'image' })} style={{cursor: 'pointer'}}>
+                    <img src={formatAssetUrl(msg.fileData)} alt="attachment" style={styles.imageAttachment} />
                   </div>
                 ) : msg.type === 'video' ? (
-                  <div onClick={() => setSelectedMedia({ url: msg.fileData, name: msg.text, type: 'video' })} style={{cursor: 'pointer'}}>
-                    <video src={msg.fileData} style={styles.imageAttachment} />
+                  <div onClick={() => setSelectedMedia({ url: formatAssetUrl(msg.fileData), name: msg.text, type: 'video' })} style={{cursor: 'pointer'}}>
+                    <video src={formatAssetUrl(msg.fileData)} style={styles.imageAttachment} />
                   </div>
                 ) : msg.type === 'file' ? (
                   <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
@@ -392,6 +392,11 @@ export default function ChatWindow({ selectedUser, onBack }) {
                   <div style={styles.inviteBubble}>
                      <p>{msg.text}</p>
                      <button className="btn-primary" style={styles.miniBtn} onClick={() => acceptInvite(msg.group)}>Accept</button>
+                  </div>
+                ) : msg.type === 'call-log' ? (
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.8}}>
+                    {msg.text.toLowerCase().includes('video') ? <Video size={16} /> : <Phone size={16} />}
+                    <span style={{fontSize: '14px'}}>{msg.text}</span>
                   </div>
                 ) : (
                   <span style={{ fontStyle: msg.type === 'system' ? 'italic' : 'normal', opacity: msg.type === 'system' ? 0.7 : 1 }}>
