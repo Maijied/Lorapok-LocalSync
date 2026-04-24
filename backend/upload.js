@@ -22,13 +22,20 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-router.post('/', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-  
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({ url: fileUrl, filename: req.file.originalname, size: req.file.size });
+router.post('/', (req, res) => {
+  upload.single('file')(req, res, function (err) {
+    if (err) {
+      console.error('Upload aborted or failed:', err.message);
+      return res.status(400).json({ error: 'Upload failed or was aborted by client' });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.json({ url: fileUrl, filename: req.file.originalname, size: req.file.size });
+  });
 });
 
 module.exports = router;
