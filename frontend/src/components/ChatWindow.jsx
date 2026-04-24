@@ -158,6 +158,13 @@ export default function ChatWindow({ selectedUser, onBack }) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Prevent massive files from crashing mobile browsers (OOM kill)
+    if (file.size > 200 * 1024 * 1024) { // 200MB limit
+      alert('File is too large! Please select a file smaller than 200MB.');
+      e.target.value = null;
+      return;
+    }
+
     // Use FormData for file upload to backend
     const formData = new FormData();
     formData.append('file', file);
@@ -305,8 +312,11 @@ export default function ChatWindow({ selectedUser, onBack }) {
                     <video src={msg.fileData} style={styles.imageAttachment} />
                   </div>
                 ) : msg.type === 'file' ? (
-                  <a href={msg.fileData} download={msg.text} style={styles.fileLink}>
-                    📄 {msg.text}
+                  <a href={msg.fileData} download={msg.text} style={{...styles.fileLink, color: 'inherit'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.1)', padding: '8px 12px', borderRadius: '8px'}}>
+                      <span>📄</span>
+                      <span style={{wordBreak: 'break-all'}}>{msg.text}</span>
+                    </div>
                   </a>
                 ) : msg.type === 'invite' ? (
                   <div style={styles.inviteBubble}>
@@ -357,6 +367,7 @@ export default function ChatWindow({ selectedUser, onBack }) {
           type="file" 
           ref={fileInputRef} 
           style={{ display: 'none' }} 
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt,.json"
           onChange={handleFileUpload} 
         />
         <input
@@ -491,8 +502,8 @@ const styles = {
     borderRadius: '8px',
   },
   fileLink: {
-    color: 'white',
-    textDecoration: 'underline',
+    textDecoration: 'none',
+    fontWeight: '500',
   },
   inputArea: {
     padding: '20px',

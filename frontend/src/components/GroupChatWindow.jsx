@@ -115,6 +115,12 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (file.size > 200 * 1024 * 1024) { // 200MB limit
+      alert('File is too large! Please select a file smaller than 200MB.');
+      e.target.value = null;
+      return;
+    }
+
     try {
       const baseUrl = getBackendUrlSync();
       
@@ -211,8 +217,11 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
                     <video src={msg.fileData} controls style={styles.imageAttachment} />
                   </div>
                 ) : msg.type === 'file' ? (
-                  <a href={msg.fileData} download={msg.text} style={styles.fileLink}>
-                    📄 {msg.text}
+                  <a href={msg.fileData} download={msg.text} style={{...styles.fileLink, color: 'inherit'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.1)', padding: '8px 12px', borderRadius: '8px'}}>
+                      <span>📄</span>
+                      <span style={{wordBreak: 'break-all'}}>{msg.text}</span>
+                    </div>
                   </a>
                 ) : (
                   <div>
@@ -242,6 +251,7 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
           type="file" 
           ref={fileInputRef} 
           style={{ display: 'none' }} 
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt,.json"
           onChange={handleFileUpload} 
         />
         <input
@@ -322,8 +332,8 @@ const styles = {
     borderRadius: '8px',
   },
   fileLink: {
-    color: 'white',
-    textDecoration: 'underline',
+    textDecoration: 'none',
+    fontWeight: '500',
   },
   inputArea: {
     padding: '15px 20px',
