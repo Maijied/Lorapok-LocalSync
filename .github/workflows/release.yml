@@ -162,11 +162,12 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            desktop-windows-latest/**/*.exe
-            desktop-macos-latest/**/*.dmg
-            desktop-ubuntu-latest/**/*.AppImage
-            desktop-ubuntu-latest/**/*.deb
-            android-apk/**/*.apk
+            desktop-windows-latest/*.exe
+            desktop-macos-latest/*.dmg
+            desktop-ubuntu-latest/*.AppImage
+            desktop-ubuntu-latest/*.deb
+            android-apk/*.apk
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

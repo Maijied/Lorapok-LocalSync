@@ -68,7 +68,8 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/icon.png"
+      "icon": "public/icon.png",
+      "artifactName": "Lorapok-LocalSync-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -80,7 +81,8 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "public/icon.png"
+      "icon": "public/icon.png",
+      "artifactName": "Lorapok-LocalSync-${version}.${ext}"
     },
     "linux": {
       "target": [
