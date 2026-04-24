@@ -1,5 +1,6 @@
 {
-  "name": "frontend",
+  "name": "lorapok-localsync",
+  "productName": "Lorapok LocalSync",
   "private": true,
   "version": "1.0.12",
   "description": "Secure encrypted communication for your local network",
@@ -38,41 +39,54 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",
-    "@eslint/js": "^9.39.4",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.5.0",
-    "vite": "^8.0.9",
-    "electron": "^33.0.0",
+    "@eslint/js": "^9.19.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^33.4.1",
     "electron-builder": "^25.1.8",
-    "concurrently": "^9.0.0",
-    "wait-on": "^8.0.0",
-    "cross-env": "^7.0.3"
+    "eslint": "^9.19.0",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "globals": "^15.14.0",
+    "vite": "^6.1.0",
+    "wait-on": "^8.0.2"
   },
   "build": {
     "appId": "com.lorapok.localsync",
-    "productName": "Lorapok-LocalSync",
+    "productName": "Lorapok LocalSync",
     "directories": {
       "output": "dist-electron"
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "package.json"
     ],
     "win": {
       "target": "nsis",
-      "artifactName": "Lorapok-LocalSync-Setup-${version}.${ext}"
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Lorapok LocalSync",
+      "uninstallDisplayName": "Lorapok LocalSync (Uninstall)"
     },
     "mac": {
       "target": "dmg",
-      "artifactName": "Lorapok-LocalSync-${version}.${ext}"
+      "icon": "public/icon.png"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Communication",
       "icon": "public/icon.png",
       "artifactName": "Lorapok-LocalSync-${version}.${ext}"

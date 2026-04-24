@@ -140,8 +140,8 @@ export default function Dashboard() {
         <div style={styles.header}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-              <img src="/logo.png" alt="Logo" style={{width: '24px', height: '24px', objectFit: 'contain'}} />
-              <h2 style={{margin: 0, fontSize: '1.2rem'}}>Chats</h2>
+              <img src="./logo.png" alt="Logo" style={{width: '24px', height: '24px', objectFit: 'contain'}} />
+              <h2 style={{margin: 0, fontSize: '1.2rem'}}>Lorapok Chats</h2>
             </div>
             <HelpCircle size={20} style={{cursor: 'pointer', opacity: 0.7}} onClick={() => setShowHelp(true)} />
           </div>

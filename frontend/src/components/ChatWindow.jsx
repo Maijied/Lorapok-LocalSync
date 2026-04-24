@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getGroups } from '../utils/db';
 import TypingIndicator from './TypingIndicator';
 import MediaViewer from './MediaViewer';
+import LinkPreview from './LinkPreview';
 
 export default function ChatWindow({ selectedUser, onBack }) {
   const { user } = useAuth();
@@ -164,7 +165,10 @@ export default function ChatWindow({ selectedUser, onBack }) {
     
     try {
       // In a real app we'd use axios for progress tracking, but fetch works for simple upload
-      const response = await fetch('http://localhost:4000/api/upload', {
+      const host = window.location.hostname;
+      const baseUrl = `http://${host}:4000`;
+      
+      const response = await fetch(`${baseUrl}/api/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -180,7 +184,7 @@ export default function ChatWindow({ selectedUser, onBack }) {
         else if (file.type.startsWith('video/')) type = 'video';
         
         // Use full URL to backend for the file
-        const fullUrl = `http://localhost:4000${data.url}`;
+        const fullUrl = `${baseUrl}${data.url}`;
         
         const newMsg = {
           id: uuidv4(),
@@ -289,6 +293,7 @@ export default function ChatWindow({ selectedUser, onBack }) {
               <div style={{
                 ...styles.messageBubble,
                 backgroundColor: isMine ? 'var(--primary-color)' : 'var(--bg-surface)',
+                color: isMine ? '#000' : 'var(--text-light)',
                 borderBottomRightRadius: isMine ? '4px' : '16px',
                 borderBottomLeftRadius: isMine ? '16px' : '4px',
               }}>
@@ -312,6 +317,9 @@ export default function ChatWindow({ selectedUser, onBack }) {
                 ) : (
                   <span style={{ fontStyle: msg.type === 'system' ? 'italic' : 'normal', opacity: msg.type === 'system' ? 0.7 : 1 }}>
                     {renderMessageTextWithLinks(msg.text)}
+                    {msg.type === 'text' && msg.text.match(/(https?:\/\/[^\s]+)/g) && (
+                       <LinkPreview url={msg.text.match(/(https?:\/\/[^\s]+)/g)[0]} />
+                    )}
                   </span>
                 )}
                 {isMine && msg.type !== 'system' && (

@@ -22,6 +22,13 @@ export default function Login() {
   useEffect(() => {
     if (isRegistered) {
       setMode('unlock');
+    } else {
+      // Auto-detect device name for registration
+      if (window.electronAPI) {
+        setName(window.electronAPI.getHostname());
+      } else {
+        setName(`User-${Math.floor(Math.random() * 1000)}`);
+      }
     }
   }, [isRegistered]);
   const [name, setName] = useState('');
@@ -93,7 +100,7 @@ export default function Login() {
       <div className="glass-panel" style={styles.cardWide}>
         <div style={styles.header}>
           <img src="/logo.png" alt="Lorapok Logo" style={styles.logo} />
-          <h1>Lorapok Communicator</h1>
+          <h1>Lorapok LocalSync</h1>
           <p>Secure encrypted communication for your local network</p>
         </div>
         

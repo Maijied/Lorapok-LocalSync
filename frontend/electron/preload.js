@@ -1,5 +1,7 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge } = require('electron');
+const os = require('os');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // You can expose ipcRenderer methods here if needed in the future
+  getHostname: () => os.hostname(),
+  platform: process.platform
 });

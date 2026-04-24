@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { getMessagesByChatId, saveMessage } from '../utils/db';
 import { Send, Paperclip, Users, ArrowLeft } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import LinkPreview from './LinkPreview';
 
 export default function GroupChatWindow({ selectedGroup, onBack }) {
   const { user } = useAuth();
@@ -72,32 +73,52 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
     scrollToBottom();
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64Data = event.target.result;
+    try {
+      const host = window.location.hostname;
+      const baseUrl = `http://${host}:4000`;
       
-      const newMsg = {
-        id: uuidv4(),
-        chatId: selectedGroup.id,
-        groupId: selectedGroup.id,
-        from: user.id,
-        fromName: user.name,
-        text: file.name,
-        fileData: base64Data,
-        type: file.type.startsWith('image/') ? 'image' : 'file',
-        timestamp: Date.now(),
-      };
+      const formData = new FormData();
+      formData.append('file', file);
 
-      setMessages(prev => [...prev, newMsg]);
-      await saveMessage(newMsg);
-      socket.emit('group_message', newMsg);
-      scrollToBottom();
-    };
-    reader.readAsDataURL(file);
+      const response = await fetch(`${baseUrl}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        let type = 'file';
+        if (file.type.startsWith('image/')) type = 'image';
+        else if (file.type.startsWith('video/')) type = 'video';
+        
+        const fullUrl = `${baseUrl}${data.url}`;
+        
+        const newMsg = {
+          id: uuidv4(),
+          chatId: selectedGroup.id,
+          groupId: selectedGroup.id,
+          from: user.id,
+          fromName: user.name,
+          text: data.filename,
+          fileData: fullUrl,
+          type: type,
+          timestamp: Date.now(),
+        };
+
+        setMessages(prev => [...prev, newMsg]);
+        await saveMessage(newMsg);
+        socket.emit('group_message', newMsg);
+        scrollToBottom();
+      }
+    } catch (error) {
+      console.error('Group upload failed:', error);
+    }
+    
     e.target.value = null; // reset
   };
 
@@ -136,6 +157,7 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
               <div style={{
                 ...styles.messageBubble,
                 backgroundColor: isMine ? 'var(--primary-color)' : 'var(--bg-surface)',
+                color: isMine ? '#000' : 'var(--text-light)',
                 borderBottomRightRadius: isMine ? '4px' : '16px',
                 borderBottomLeftRadius: isMine ? '16px' : '4px',
               }}>
@@ -144,12 +166,21 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
                   <div>
                     <img src={msg.fileData} alt="attachment" style={styles.imageAttachment} />
                   </div>
+                ) : msg.type === 'video' ? (
+                  <div>
+                    <video src={msg.fileData} style={styles.imageAttachment} />
+                  </div>
                 ) : msg.type === 'file' ? (
                   <a href={msg.fileData} download={msg.text} style={styles.fileLink}>
                     📄 {msg.text}
                   </a>
                 ) : (
-                  msg.text
+                  <div>
+                    {msg.text}
+                    {msg.text.match(/(https?:\/\/[^\s]+)/g) && (
+                       <LinkPreview url={msg.text.match(/(https?:\/\/[^\s]+)/g)[0]} />
+                    )}
+                  </div>
                 )}
               </div>
             </div>

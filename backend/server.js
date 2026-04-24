@@ -30,6 +30,25 @@ app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 const uploadRoute = require('./upload');
 app.use('/api/upload', uploadRoute);
 
+app.get('/api/link-preview', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'URL is required' });
+
+  try {
+    const axios = require('axios');
+    const response = await axios.get(url, { timeout: 3000 });
+    const html = response.data;
+    
+    const title = html.match(/<title>(.*?)<\/title>/i)?.[1] || url;
+    const description = html.match(/<meta name="description" content="(.*?)"/i)?.[1] || '';
+    const image = html.match(/<meta property="og:image" content="(.*?)"/i)?.[1] || '';
+
+    res.json({ title, description, image, url });
+  } catch (error) {
+    res.json({ title: url, description: '', image: '', url });
+  }
+});
+
 const io = new Server(server, {
   cors: {
     origin: "*",

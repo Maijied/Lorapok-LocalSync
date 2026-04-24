@@ -5,41 +5,42 @@ export default function MediaViewer({ fileUrl, fileName, type, onClose }) {
   if (!fileUrl) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4">
-      <div className="absolute top-4 right-4 flex gap-4">
+    <div style={styles.overlay} onClick={onClose}>
+      <div style={styles.controls}>
         <a 
           href={fileUrl} 
           download={fileName}
-          className="p-2 rounded-full bg-slate-800 text-white hover:bg-slate-700 transition"
+          style={styles.controlBtn}
+          onClick={e => e.stopPropagation()}
         >
           <Download size={24} />
         </a>
         <button 
           onClick={onClose}
-          className="p-2 rounded-full bg-slate-800 text-white hover:bg-slate-700 transition"
+          style={styles.controlBtn}
         >
           <X size={24} />
         </button>
       </div>
       
-      <div className="max-w-4xl max-h-screen flex items-center justify-center">
+      <div style={styles.content} onClick={e => e.stopPropagation()}>
         {type === 'image' ? (
           <img 
             src={fileUrl} 
             alt={fileName} 
-            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+            style={styles.media}
           />
         ) : type === 'video' ? (
           <video 
             src={fileUrl} 
             controls 
             autoPlay 
-            className="max-w-full max-h-[90vh] rounded-lg"
+            style={styles.media}
           />
         ) : (
-          <div className="text-white text-center">
-            <p className="mb-4">Cannot preview this file type.</p>
-            <a href={fileUrl} download={fileName} className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500 transition">
+          <div style={styles.fallback}>
+            <p style={{marginBottom: '20px'}}>Preview not available for this format.</p>
+            <a href={fileUrl} download={fileName} className="btn-primary" style={{textDecoration: 'none'}}>
               Download File
             </a>
           </div>
@@ -48,3 +49,64 @@ export default function MediaViewer({ fileUrl, fileName, type, onClose }) {
     </div>
   );
 }
+
+const styles = {
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    backgroundColor: 'rgba(5, 5, 10, 0.85)',
+    backdropFilter: 'blur(20px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+  },
+  controls: {
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    display: 'flex',
+    gap: '15px',
+    zIndex: 1001,
+  },
+  controlBtn: {
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '50%',
+    width: '50px',
+    height: '50px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#fff',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+  },
+  content: {
+    maxWidth: '90%',
+    maxHeight: '90%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 0 50px rgba(0, 0, 0, 0.5)',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    background: 'rgba(0, 0, 0, 0.4)',
+  },
+  media: {
+    maxWidth: '100%',
+    maxHeight: '85vh',
+    objectFit: 'contain',
+    display: 'block',
+  },
+  fallback: {
+    padding: '40px',
+    textAlign: 'center',
+    color: '#fff',
+  }
+};
