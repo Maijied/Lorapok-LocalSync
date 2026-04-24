@@ -10,7 +10,7 @@ const BACKEND_PORT = 4000;
 let _cachedBaseUrl = null;
 
 export async function getBackendUrl() {
-  if (_cachedBaseUrl) return _cachedBaseUrl;
+  if (_cachedBaseUrl !== null) return _cachedBaseUrl;
 
   // In Electron, ask the main process for the discovered Hub IP
   if (window.electronAPI?.getHubIp) {
@@ -25,16 +25,14 @@ export async function getBackendUrl() {
     }
   }
 
-  // For web browsers: use the page's hostname (works for LAN access)
-  const host = window.location.hostname || 'localhost';
-  _cachedBaseUrl = `http://${host}:${BACKEND_PORT}`;
+  // For web browsers: use relative path to utilize Vite proxy or Native proxy
+  _cachedBaseUrl = '';
   return _cachedBaseUrl;
 }
 
 export function getBackendUrlSync() {
-  if (_cachedBaseUrl) return _cachedBaseUrl;
-  const host = window.location.hostname || 'localhost';
-  return `http://${host}:${BACKEND_PORT}`;
+  if (_cachedBaseUrl !== null) return _cachedBaseUrl;
+  return '';
 }
 
 export function getSocketUrl() {
