@@ -44,11 +44,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug: List Build Output
+        shell: bash
+        run: ls -R frontend/dist-electron || echo "No dist-electron folder found"
+
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.os }}
-          path: frontend/dist-electron/**/*.{exe,dmg,AppImage}
+          path: frontend/dist-electron/
 
   build-android:
     name: Build Android App
