@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.os }}
-          path: frontend/dist-electron/*.{exe,dmg,AppImage}
+          path: frontend/dist-electron/**/*.{exe,dmg,AppImage}
 
   build-android:
     name: Build Android App
@@ -141,10 +141,10 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            desktop-windows-latest/*.exe
-            desktop-macos-latest/*.dmg
-            desktop-ubuntu-latest/*.AppImage
-            android-apk/*.apk
+            desktop-windows-latest/**/*.exe
+            desktop-macos-latest/**/*.dmg
+            desktop-ubuntu-latest/**/*.AppImage
+            android-apk/**/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
