@@ -470,6 +470,42 @@ footer p {
     font-weight: 700;
 }
 
+.linux-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.linux-btn {
+    display: block;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-light);
+    padding: 10px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.linux-btn:hover {
+    background: var(--primary-color);
+    color: var(--bg-dark);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.download-card.linux-card:hover {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-light);
+    transform: none;
+    box-shadow: none;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .hero h1 { font-size: 4rem; }

@@ -144,6 +144,7 @@ jobs:
           sed -i "s@__WIN_LINK__@$BASE_URL/Lorapok-LocalSync-Setup-$VERSION.exe@g" deploy_site/index.html
           sed -i "s@__MAC_LINK__@$BASE_URL/Lorapok-LocalSync-$VERSION.dmg@g" deploy_site/index.html
           sed -i "s@__LINUX_LINK__@$BASE_URL/Lorapok-LocalSync-$VERSION.AppImage@g" deploy_site/index.html
+          sed -i "s@__DEB_LINK__@$BASE_URL/Lorapok-LocalSync-$VERSION.deb@g" deploy_site/index.html
           sed -i "s@__APK_LINK__@$BASE_URL/app-debug.apk@g" deploy_site/index.html
           
           # Debug: Verify the file was changed
@@ -160,6 +161,7 @@ jobs:
             desktop-windows-latest/**/*.exe
             desktop-macos-latest/**/*.dmg
             desktop-ubuntu-latest/**/*.AppImage
+            desktop-ubuntu-latest/**/*.deb
             android-apk/**/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
