@@ -4,17 +4,37 @@ import { Download, X } from 'lucide-react';
 export default function MediaViewer({ fileUrl, fileName, type, onClose }) {
   if (!fileUrl) return null;
 
+  const handleDownload = async (e) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName || 'download';
+      document.body.appendChild(a);
+      a.click();
+      
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        a.remove();
+      }, 1000);
+    } catch (err) {
+      console.error('Download failed', err);
+    }
+  };
+
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.controls}>
-        <a 
-          href={fileUrl} 
-          download={fileName}
+        <button 
+          onClick={handleDownload}
           style={styles.controlBtn}
-          onClick={e => e.stopPropagation()}
         >
           <Download size={24} />
-        </a>
+        </button>
         <button 
           onClick={onClose}
           style={styles.controlBtn}
@@ -40,9 +60,9 @@ export default function MediaViewer({ fileUrl, fileName, type, onClose }) {
         ) : (
           <div style={styles.fallback}>
             <p style={{marginBottom: '20px'}}>Preview not available for this format.</p>
-            <a href={fileUrl} download={fileName} className="btn-primary" style={{textDecoration: 'none'}}>
+            <button onClick={handleDownload} className="btn-primary" style={{border: 'none', cursor: 'pointer'}}>
               Download File
-            </a>
+            </button>
           </div>
         )}
       </div>
