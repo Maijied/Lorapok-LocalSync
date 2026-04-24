@@ -1,0 +1,58 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cyber Background Glow -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#00f3ff" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#00f3ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="larva-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f3ff"/>
+      <stop offset="100%" stop-color="#bc13fe"/>
+    </linearGradient>
+    <filter id="neon">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <circle cx="256" cy="256" r="250" fill="url(#glow)"/>
+
+  <!-- Stylized Larva Body (C-Shape) -->
+  <g filter="url(#neon)">
+    <circle cx="380" cy="220" r="45" fill="#bc13fe" opacity="0.6"/>
+    <circle cx="340" cy="160" r="40" fill="#a020f0" opacity="0.7"/>
+    <circle cx="280" cy="120" r="35" fill="#8000ff" opacity="0.8"/>
+    <circle cx="210" cy="110" r="32" fill="#6000ff" opacity="0.9"/>
+    <circle cx="150" cy="130" r="35" fill="#4000ff"/>
+    <circle cx="110" cy="190" r="40" fill="#20a0ff"/>
+    <circle cx="100" cy="260" r="45" fill="#00f3ff"/>
+    <circle cx="120" cy="330" r="50" fill="#00f3ff">
+       <animate attributeName="r" values="50;55;50" dur="3s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="170" cy="390" r="55" fill="#00f3ff"/>
+    <circle cx="240" cy="420" r="60" fill="#bc13fe"/>
+    <!-- Head -->
+    <circle cx="320" cy="400" r="70" fill="url(#larva-grad)"/>
+    <!-- Eye -->
+    <circle cx="340" cy="380" r="8" fill="white"/>
+  </g>
+
+  <!-- Networkless Icon (Tower with X) -->
+  <g transform="translate(360, 260) scale(0.8)">
+    <path d="M20 100 L50 20 L80 100 M35 60 L65 60" stroke="#00f3ff" stroke-width="8" fill="none"/>
+    <circle cx="50" cy="10" r="5" fill="#bc13fe">
+      <animate attributeName="opacity" values="1;0;1" dur="1.5s" repeatCount="indefinite" />
+    </circle>
+    <line x1="10" y1="10" x2="90" y2="90" stroke="#ff4444" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <!-- Router Local Icon -->
+  <g transform="translate(260, 360) scale(0.6)">
+    <rect x="10" y="60" width="80" height="20" rx="5" fill="#00f3ff" opacity="0.8"/>
+    <circle cx="25" cy="70" r="3" fill="#050510"/>
+    <circle cx="40" cy="70" r="3" fill="#050510"/>
+    <circle cx="55" cy="70" r="3" fill="#050510"/>
+    <path d="M30 50 Q50 20 70 50" stroke="#00f3ff" stroke-width="4" fill="none" opacity="0.5"/>
+    <path d="M20 40 Q50 0 80 40" stroke="#00f3ff" stroke-width="4" fill="none" opacity="0.3"/>
+  </g>
+</svg>
