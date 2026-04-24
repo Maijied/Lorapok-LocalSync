@@ -46,7 +46,7 @@ function createWindow() {
   const isDev = !app.isPackaged;
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://127.0.0.1:5173');
     mainWindow.webContents.openDevTools();
   } else {
     // In production, use absolute path from app root
