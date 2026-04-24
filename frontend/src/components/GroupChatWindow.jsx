@@ -213,8 +213,12 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
         a.download = msg.text;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
+        
+        // Delay cleanup so Electron has time to trigger the native save dialog
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+          a.remove();
+        }, 1000);
       } else {
         alert('Download failed.');
       }
@@ -283,12 +287,12 @@ export default function GroupChatWindow({ selectedGroup, onBack }) {
                   </div>
                 ) : msg.type === 'file' ? (
                   <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                    <a href={msg.fileData} onClick={(e) => handleDownload(e, msg)} style={{...styles.fileLink, color: 'inherit', cursor: 'pointer'}}>
+                    <div onClick={(e) => handleDownload(e, msg)} style={{...styles.fileLink, color: 'inherit', cursor: 'pointer'}}>
                       <div style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.1)', padding: '8px 12px', borderRadius: '8px'}}>
                         <span>📄</span>
                         <span style={{wordBreak: 'break-all'}}>{msg.text}</span>
                       </div>
-                    </a>
+                    </div>
                     {downloadingId === msg.id && (
                       <div style={{width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px'}}>
                         <div style={{width: `${downloadProgress}%`, height: '100%', backgroundColor: 'var(--primary-color)', transition: 'width 0.2s'}} />
