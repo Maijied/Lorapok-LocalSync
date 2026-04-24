@@ -17,8 +17,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && electron electron/main.js\"",
-    "electron:start": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && electron electron/main.js\"",
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on tcp:5173 && electron electron/main.js\"",
+    "electron:start": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on tcp:5173 && electron electron/main.js\"",
     "electron:build": "npm run build && electron-builder",
     "cap:sync": "npm run build && npx cap sync",
     "cap:icons": "npx @capacitor/assets generate --iconBackgroundColor #050505 --splashBackgroundColor #050505"
