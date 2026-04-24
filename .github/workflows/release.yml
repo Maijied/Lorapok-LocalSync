@@ -97,6 +97,9 @@ jobs:
     name: Release Software & Deploy Website
     runs-on: ubuntu-latest
     needs: [build-all, build-android]
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       contents: write
       pages: write
