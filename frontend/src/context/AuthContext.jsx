@@ -1,144 +1,183 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { getCurrentUser, saveCurrentUser } from '../utils/db';
-import { encryption } from '../utils/crypto';
+import { clearCurrentUser, getCurrentUser, saveCurrentUser } from '../utils/db';
+import { apiFetch } from '../utils/network';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
+
+const REFRESH_TOKEN_KEY = 'lorapok_refresh_token';
+const REMEMBER_ME_KEY = 'lorapok_remember_me';
 
 export const useAuth = () => useContext(AuthContext);
 
-const REMEMBER_TOKEN_KEY = 'lorapok_remember_token';
-const REMEMBER_TOKEN_EXPIRY_KEY = 'lorapok_token_expiry';
-const REMEMBER_TOKEN_EXPIRY_DAYS = 30;
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [accessToken, setAccessToken] = useState(null);
+  const [refreshToken, setRefreshToken] = useState(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [rememberToken, setRememberToken] = useState(null);
+  const [authError, setAuthError] = useState('');
+
+  const persistRefreshToken = (token, remember) => {
+    if (remember) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token);
+      localStorage.setItem(REMEMBER_ME_KEY, 'true');
+    } else {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem(REMEMBER_ME_KEY);
+    }
+    setRefreshToken(token);
+  };
+
+  const clearSessionState = async (clearUser = false) => {
+    setAccessToken(null);
+    setRefreshToken(null);
+    setIsUnlocked(false);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(REMEMBER_ME_KEY);
+    if (clearUser) {
+      setUser(null);
+      setIsRegistered(false);
+      await clearCurrentUser();
+    }
+  };
 
   useEffect(() => {
-    const loadUser = async () => {
+    const bootstrap = async () => {
       try {
         const storedUser = await getCurrentUser();
-        if (storedUser) {
-          setUser(storedUser);
-          setIsRegistered(true);
-
-          // Try to auto-unlock with remember token
-          const token = localStorage.getItem(REMEMBER_TOKEN_KEY);
-          const expiry = localStorage.getItem(REMEMBER_TOKEN_EXPIRY_KEY);
-
-          if (token && expiry && parseInt(expiry) > Date.now()) {
-            // Token is valid - auto-unlock
-            setRememberToken(token);
-            setIsUnlocked(true);
-            console.log('User auto-unlocked with remember token');
-          }
+        if (!storedUser) {
+          return;
         }
+
+        setUser(storedUser);
+        setIsRegistered(true);
+
+        const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+        const rememberMe = localStorage.getItem(REMEMBER_ME_KEY) === 'true';
+        if (!storedRefreshToken || !rememberMe) {
+          return;
+        }
+
+        const response = await apiFetch('/auth/refresh', {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken: storedRefreshToken }),
+        });
+
+        setUser(response.user);
+        setAccessToken(response.accessToken);
+        setRefreshToken(storedRefreshToken);
+        setIsUnlocked(true);
+        await saveCurrentUser(response.user);
       } catch (error) {
-        console.error("Failed to load user from DB", error);
+        console.error('Auto unlock failed:', error);
+        await clearSessionState(false);
       } finally {
         setLoading(false);
       }
     };
-    loadUser();
+
+    bootstrap();
   }, []);
 
-  const generateRememberToken = (pin) => {
-    // Create a token using user ID and PIN hash
-    const tokenData = `${user?.id || uuidv4()}_${Date.now()}_${Math.random()}`;
-    const encryptedToken = encryption.hashData(tokenData + pin);
-    return encryptedToken;
-  };
-
-  const saveRememberToken = (token) => {
-    try {
-      const expiryTime = Date.now() + REMEMBER_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-      localStorage.setItem(REMEMBER_TOKEN_KEY, token);
-      localStorage.setItem(REMEMBER_TOKEN_EXPIRY_KEY, expiryTime.toString());
-      setRememberToken(token);
-    } catch (error) {
-      console.error('Failed to save remember token:', error);
-    }
-  };
-
-  const clearRememberToken = () => {
-    try {
-      localStorage.removeItem(REMEMBER_TOKEN_KEY);
-      localStorage.removeItem(REMEMBER_TOKEN_EXPIRY_KEY);
-      setRememberToken(null);
-    } catch (error) {
-      console.error('Failed to clear remember token:', error);
-    }
-  };
-
-  const register = async (name, pin, dp) => {
-    const newUser = {
-      id: uuidv4(),
+  const register = async (name, pin, dp, shouldRemember = true) => {
+    setAuthError('');
+    const payload = {
+      id: user?.id || uuidv4(),
       name,
       pin,
       dp,
-      createdAt: Date.now()
     };
-    await saveCurrentUser(newUser);
-    setUser(newUser);
+
+    const response = await apiFetch('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    setUser(response.user);
+    setAccessToken(response.accessToken);
     setIsRegistered(true);
     setIsUnlocked(true);
+    persistRefreshToken(response.refreshToken, shouldRemember);
+    await saveCurrentUser(response.user);
 
-    // Generate and save remember token
-    const token = generateRememberToken(pin);
-    saveRememberToken(token);
-
-    return newUser;
+    return response.user;
   };
 
   const unlock = async (pin, shouldRemember = false) => {
-    if (user && user.pin === pin) {
-      setIsUnlocked(true);
-
-      // Save remember token if requested
-      if (shouldRemember) {
-        const token = generateRememberToken(pin);
-        saveRememberToken(token);
-      }
-
-      return true;
+    if (!user?.id) {
+      setAuthError('No local account found');
+      return false;
     }
-    return false;
+
+    setAuthError('');
+
+    try {
+      const response = await apiFetch('/auth/unlock', {
+        method: 'POST',
+        body: JSON.stringify({ id: user.id, pin }),
+      });
+
+      setUser(response.user);
+      setAccessToken(response.accessToken);
+      setIsUnlocked(true);
+      persistRefreshToken(response.refreshToken, shouldRemember);
+      await saveCurrentUser(response.user);
+      return true;
+    } catch (error) {
+      setAuthError(error.message);
+      return false;
+    }
   };
 
-  const logout = () => {
-    setIsUnlocked(false);
-    clearRememberToken();
+  const refreshAccessToken = async () => {
+    const token = refreshToken || localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!token) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await apiFetch('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken: token }),
+    });
+
+    setUser(response.user);
+    setAccessToken(response.accessToken);
+    setRefreshToken(token);
+    setIsUnlocked(true);
+    await saveCurrentUser(response.user);
+    return response.accessToken;
+  };
+
+  const logout = async () => {
+    await clearSessionState(false);
   };
 
   const logoutCompletely = async () => {
-    // Complete logout - also clear user data
-    setIsUnlocked(false);
-    setUser(null);
-    setIsRegistered(false);
-    clearRememberToken();
-    // In real app, also delete user from IndexedDB if needed
+    await clearSessionState(true);
   };
 
-  return (
-    <AuthContext.Provider value={{
-      user,
-      loading,
-      isRegistered,
-      isUnlocked,
-      rememberToken,
-      register,
-      unlock,
-      logout,
-      logoutCompletely,
-      saveRememberToken,
-      clearRememberToken
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+  const handleSessionExpired = async () => {
+    await clearSessionState(false);
+  };
 
+  const value = {
+    user,
+    accessToken,
+    refreshToken,
+    loading,
+    isRegistered,
+    isUnlocked,
+    authError,
+    register,
+    unlock,
+    logout,
+    logoutCompletely,
+    refreshAccessToken,
+    handleSessionExpired,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

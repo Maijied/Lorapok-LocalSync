@@ -1,166 +1,197 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { ArrowRight, HelpCircle, Info, Key, LogOut, Users } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import { getGroups, saveGroup } from '../utils/db';
+import { getGroups, saveGroup, saveGroups } from '../utils/db';
+import { apiFetch } from '../utils/network';
 import ChatWindow from '../components/ChatWindow';
 import GroupChatWindow from '../components/GroupChatWindow';
-import { v4 as uuidv4 } from 'uuid';
-import { LogOut, HelpCircle, Key, Users, Info, ArrowRight } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const { socket, onlineUsers } = useSocket();
+  const { user, logout } = useAuth();
+  const { socket, onlineUsers, connectionStatus } = useSocket();
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
-  
   const [groups, setGroups] = useState([]);
   const [publicGroups, setPublicGroups] = useState([]);
+  const [showHelp, setShowHelp] = useState(false);
+  const [runtimeInfo, setRuntimeInfo] = useState(null);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [isJoiningWithKey, setIsJoiningWithKey] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [joinKey, setJoinKey] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [isPublicGroup, setIsPublicGroup] = useState(false);
 
   useEffect(() => {
-    if (!socket) return;
+    let active = true;
+    getGroups().then((localGroups) => {
+      if (active) {
+        setGroups(localGroups);
+      }
+    });
 
-    // Load local groups
-    const loadGroups = async () => {
-      const localGroups = await getGroups();
-      setGroups(localGroups);
-      // Re-join groups on socket
-      localGroups.forEach(g => socket.emit('join_group', g.id));
-    };
-    loadGroups();
-
-    const handleGroupCreated = async (groupData) => {
-      // Check if we already have this group locally
-      setGroups(prev => {
-        if (!prev.find(g => g.id === groupData.id)) {
-          saveGroup(groupData);
-          return [...prev, groupData];
+    apiFetch('/meta')
+      .then((meta) => {
+        if (active) {
+          setRuntimeInfo(meta);
         }
-        return prev;
+      })
+      .catch((error) => {
+        console.error('Failed to load runtime info:', error);
       });
-      socket.emit('join_group', groupData.id);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!socket) {
+      return undefined;
+    }
+
+    const handleSessionReady = async (payload) => {
+      setGroups(payload.groups || []);
+      setPublicGroups(payload.publicGroups || []);
+      await saveGroups(payload.groups || []);
     };
 
-    const handlePublicGroupsUpdate = (pgroups) => {
-      setPublicGroups(pgroups);
+    const handleGroupCreated = async (group) => {
+      await saveGroup(group);
+      setGroups((current) => {
+        if (current.some((entry) => entry.id === group.id)) {
+          return current.map((entry) => (entry.id === group.id ? group : entry));
+        }
+        return [...current, group];
+      });
     };
 
+    const handlePublicGroupsUpdate = (nextGroups) => {
+      setPublicGroups(nextGroups);
+    };
+
+    socket.on('session_ready', handleSessionReady);
     socket.on('group_created', handleGroupCreated);
     socket.on('public_groups_update', handlePublicGroupsUpdate);
 
     return () => {
+      socket.off('session_ready', handleSessionReady);
       socket.off('group_created', handleGroupCreated);
       socket.off('public_groups_update', handlePublicGroupsUpdate);
     };
   }, [socket]);
 
-  const handleCreateGroup = async (e) => {
-    e.preventDefault();
-    if (!newGroupName.trim() || (!isPublicGroup && selectedMembers.length === 0)) return;
+  const handleCreateGroup = async (event) => {
+    event.preventDefault();
+    if (!newGroupName.trim() || (!isPublicGroup && selectedMembers.length === 0)) {
+      return;
+    }
 
-    const newGroup = {
+    const group = {
       id: uuidv4(),
-      name: newGroupName,
+      name: newGroupName.trim(),
       members: [user.id, ...selectedMembers],
       createdBy: user.id,
-      isPublic: isPublicGroup
+      isPublic: isPublicGroup,
     };
 
-    setGroups(prev => [...prev, newGroup]);
-    await saveGroup(newGroup);
-    socket.emit('create_group', newGroup);
-    
+    socket.emit('create_group', group);
     setIsCreatingGroup(false);
     setNewGroupName('');
     setSelectedMembers([]);
     setIsPublicGroup(false);
-    setSelectedGroup(newGroup);
-    setSelectedUser(null);
-  };
-
-  const toggleMemberSelection = (userId) => {
-    setSelectedMembers(prev => 
-      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
-    );
   };
 
   const joinPublicGroup = (groupId) => {
-    socket.emit('join_public_group', { groupId, user });
+    socket.emit('join_public_group', { groupId });
   };
 
-  const handleJoinWithKey = (e) => {
-    e.preventDefault();
-    if (!joinKey.trim()) return;
+  const handleJoinWithKey = (event) => {
+    event.preventDefault();
+    if (!joinKey.trim()) {
+      return;
+    }
+
     socket.emit('join_group_with_key', joinKey.toUpperCase());
-    setIsJoiningWithKey(false);
     setJoinKey('');
+    setIsJoiningWithKey(false);
+  };
+
+  const toggleMemberSelection = (userId) => {
+    setSelectedMembers((current) =>
+      current.includes(userId) ? current.filter((entry) => entry !== userId) : [...current, userId]
+    );
   };
 
   return (
     <div className="dashboard-container" style={styles.container}>
       {showHelp && (
         <div style={styles.modalOverlay} onClick={() => setShowHelp(false)}>
-          <div className="glass-panel" style={styles.modal} onClick={e => e.stopPropagation()}>
-            <h2 style={{color: 'var(--primary-color)', marginBottom: '20px'}}>How to Use Lorapok</h2>
+          <div className="glass-panel" style={styles.modal} onClick={(event) => event.stopPropagation()}>
+            <h2 style={{ color: 'var(--primary-color)', marginBottom: '20px' }}>Lorapok Communicator Guide</h2>
             <div style={styles.helpGrid}>
               <div style={styles.helpItem}>
                 <Key size={24} color="var(--primary-color)" />
                 <div>
                   <h4>Secret Keys</h4>
-                  <p>Every group has a 6-digit key in the header. Use the <strong>Key</strong> button in the sidebar to join groups instantly.</p>
+                  <p>Every group has a six-character key in the header. Use the Key button in the sidebar to join instantly.</p>
                 </div>
               </div>
               <div style={styles.helpItem}>
                 <Users size={24} color="var(--primary-color)" />
                 <div>
-                  <h4>Group Invites</h4>
-                  <p>In a private chat, click the <strong>Invite</strong> icon to send a direct group invitation to your contact.</p>
+                  <h4>Reliable Sync</h4>
+                  <p>Private and group messages are stored server-side, so offline users receive them after reconnecting.</p>
                 </div>
               </div>
               <div style={styles.helpItem}>
                 <Info size={24} color="var(--primary-color)" />
                 <div>
-                  <h4>Mobile Connection</h4>
-                  <p>To connect your phone, ensure it is on the same Wi-Fi and enter your PC's IP address followed by the port (e.g., <strong>http://192.168.0.219:5173</strong>).</p>
+                  <h4>Runtime Address</h4>
+                  <p>
+                    {runtimeInfo?.primaryUrl
+                      ? `Current server address: ${runtimeInfo.primaryUrl}`
+                      : 'Runtime information is loading from the server.'}
+                  </p>
                 </div>
               </div>
             </div>
-            <button className="btn-primary" style={{width: '100%', marginTop: '20px'}} onClick={() => setShowHelp(false)}>Got it!</button>
+            <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => setShowHelp(false)}>
+              Close
+            </button>
           </div>
         </div>
       )}
 
       <div className={`glass-panel sidebar ${selectedUser || selectedGroup ? 'hidden-mobile' : ''}`} style={styles.sidebar}>
         <div style={styles.header}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-            <h2 style={{margin: 0}}>Chats</h2>
-            <HelpCircle size={20} style={{cursor: 'pointer', opacity: 0.7}} onClick={() => setShowHelp(true)} />
+          <div style={styles.headerTop}>
+            <div>
+              <p style={styles.brandEyebrow}>Lorapok Communicator</p>
+              <h2 style={{ margin: 0 }}>Chats</h2>
+            </div>
+            <div style={styles.headerActions}>
+              <HelpCircle size={20} style={styles.headerIcon} onClick={() => setShowHelp(true)} />
+              <LogOut size={20} style={styles.headerIcon} onClick={logout} />
+            </div>
           </div>
+          <p style={styles.connectionText}>
+            {connectionStatus === 'connected'
+              ? `Connected to ${runtimeInfo?.primaryUrl || 'server'}`
+              : 'Disconnected from server'}
+          </p>
         </div>
-        
+
         <div style={styles.userList}>
-          {/* Groups Section */}
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+          <div style={styles.sectionHeader}>
             <h3 style={styles.sectionTitle}>Groups</h3>
-            <div style={{display: 'flex', gap: '8px'}}>
-              <button 
-                className="btn-primary" 
-                style={{...styles.smallBtn, backgroundColor: 'var(--bg-surface)'}} 
-                onClick={() => setIsJoiningWithKey(!isJoiningWithKey)}
-              >
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn-primary" style={{ ...styles.smallBtn, backgroundColor: 'var(--bg-surface)' }} onClick={() => setIsJoiningWithKey((open) => !open)}>
                 Key
               </button>
-              <button 
-                className="btn-primary" 
-                style={styles.smallBtn} 
-                onClick={() => setIsCreatingGroup(!isCreatingGroup)}
-              >
+              <button className="btn-primary" style={styles.smallBtn} onClick={() => setIsCreatingGroup((open) => !open)}>
                 +
               </button>
             </div>
@@ -168,128 +199,136 @@ export default function Dashboard() {
 
           {isJoiningWithKey && (
             <form onSubmit={handleJoinWithKey} style={styles.createGroupForm}>
-               <input 
-                type="text" 
-                className="input-field" 
-                placeholder="6-Digit Secret Key" 
+              <input
+                type="text"
+                className="input-field"
+                placeholder="6-character group key"
                 value={joinKey}
-                onChange={(e) => setJoinKey(e.target.value)}
-                style={{marginBottom: '8px'}}
+                onChange={(event) => setJoinKey(event.target.value)}
+                style={{ marginBottom: '8px' }}
               />
-              <button type="submit" className="btn-primary" style={{width: '100%', padding: '8px'}}>
+              <button type="submit" className="btn-primary" style={{ width: '100%', padding: '8px' }}>
                 Join Group
               </button>
             </form>
           )}
 
           {isCreatingGroup && (
-            <div style={styles.createGroupForm}>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="Group Name" 
+            <form style={styles.createGroupForm} onSubmit={handleCreateGroup}>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Group Name"
                 value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                style={{marginBottom: '8px'}}
+                onChange={(event) => setNewGroupName(event.target.value)}
+                style={{ marginBottom: '8px' }}
               />
-              <label style={{display: 'flex', gap: '8px', cursor: 'pointer', marginBottom: '8px', fontSize: '0.9rem'}}>
-                <input 
-                  type="checkbox" 
-                  checked={isPublicGroup} 
-                  onChange={(e) => setIsPublicGroup(e.target.checked)}
-                />
-                Make Public (Anyone can join)
+              <label style={styles.checkboxRow}>
+                <input type="checkbox" checked={isPublicGroup} onChange={(event) => setIsPublicGroup(event.target.checked)} />
+                Make Public
               </label>
               {!isPublicGroup && (
                 <div style={styles.memberSelectScroll}>
-                  <p style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Select Members:</p>
-                  {onlineUsers.map(u => (
-                    <label key={u.id} style={{display: 'flex', gap: '8px', cursor: 'pointer', margin: '4px 0'}}>
-                      <input 
-                        type="checkbox" 
-                        checked={selectedMembers.includes(u.id)} 
-                        onChange={() => toggleMemberSelection(u.id)}
+                  <p style={styles.memberPrompt}>Select Members:</p>
+                  {onlineUsers.map((entry) => (
+                    <label key={entry.id} style={styles.checkboxRow}>
+                      <input
+                        type="checkbox"
+                        checked={selectedMembers.includes(entry.id)}
+                        onChange={() => toggleMemberSelection(entry.id)}
                       />
-                      {u.name}
+                      {entry.name}
                     </label>
                   ))}
                 </div>
               )}
-              <button className="btn-primary" style={{width: '100%', padding: '8px'}} onClick={handleCreateGroup}>
-                Create
+              <button className="btn-primary" style={{ width: '100%', padding: '8px' }} type="submit">
+                Create Group
               </button>
-            </div>
+            </form>
           )}
 
-          {/* My Groups */}
-          {groups.map(g => (
-            <div 
-              key={g.id} 
+          {groups.map((group) => (
+            <div
+              key={group.id}
               style={{
                 ...styles.userItem,
-                backgroundColor: selectedGroup?.id === g.id ? 'rgba(99, 102, 241, 0.2)' : 'transparent'
+                backgroundColor: selectedGroup?.id === group.id ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
               }}
-              onClick={() => { setSelectedGroup(g); setSelectedUser(null); }}
+              onClick={() => {
+                setSelectedGroup(group);
+                setSelectedUser(null);
+              }}
             >
               <div style={styles.avatarItemMini}>G</div>
-              <span>{g.name}</span>
+              <span>{group.name}</span>
             </div>
           ))}
 
-          {/* Public Groups Not Joined */}
-          {publicGroups.filter(pg => !groups.find(g => g.id === pg.id)).length > 0 && (
+          {publicGroups.filter((group) => !groups.some((entry) => entry.id === group.id)).length > 0 && (
             <>
-              <h3 style={{...styles.sectionTitle, marginTop: '16px'}}>Discover Public Groups</h3>
-              {publicGroups.filter(pg => !groups.find(g => g.id === pg.id)).map(pg => (
-                <div key={pg.id} style={styles.userItem}>
-                  <div style={{...styles.avatarItemMini, backgroundColor: '#64748b'}}>P</div>
-                  <span style={{flex: 1}}>{pg.name}</span>
-                  <button 
-                    className="btn-primary" 
-                    style={{...styles.smallBtn, fontSize: '0.8rem', padding: '4px 8px'}} 
-                    onClick={() => joinPublicGroup(pg.id)}
-                  >
-                    Join
-                  </button>
-                </div>
-              ))}
+              <h3 style={{ ...styles.sectionTitle, marginTop: '16px' }}>Discover Public Groups</h3>
+              {publicGroups
+                .filter((group) => !groups.some((entry) => entry.id === group.id))
+                .map((group) => (
+                  <div key={group.id} style={styles.userItem}>
+                    <div style={{ ...styles.avatarItemMini, backgroundColor: '#64748b' }}>P</div>
+                    <span style={{ flex: 1 }}>{group.name}</span>
+                    <button
+                      className="btn-primary"
+                      style={{ ...styles.smallBtn, fontSize: '0.8rem', padding: '4px 8px' }}
+                      onClick={() => joinPublicGroup(group.id)}
+                    >
+                      Join
+                    </button>
+                  </div>
+                ))}
             </>
           )}
 
           <hr style={styles.divider} />
 
-          {/* Online Users Section */}
-          <h3 style={styles.sectionTitle}>Online on Router</h3>
+          <div style={styles.sectionHeader}>
+            <h3 style={styles.sectionTitle}>Online on Router</h3>
+            <span style={styles.onlineCount}>{onlineUsers.length}</span>
+          </div>
+
           {onlineUsers.length === 0 ? (
             <p style={styles.noUsers}>No one else is online right now.</p>
           ) : (
-            onlineUsers.map(u => (
-              <div 
-                key={u.id} 
+            onlineUsers.map((entry) => (
+              <div
+                key={entry.id}
                 style={{
                   ...styles.userItem,
-                  backgroundColor: selectedUser?.id === u.id ? 'rgba(99, 102, 241, 0.2)' : 'transparent'
+                  backgroundColor: selectedUser?.id === entry.id ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
                 }}
-                onClick={() => { setSelectedUser(u); setSelectedGroup(null); }}
+                onClick={() => {
+                  setSelectedUser(entry);
+                  setSelectedGroup(null);
+                }}
               >
                 <div style={styles.avatarCircle}>
-                  <img src={u.dp} alt="avatar" style={styles.avatarImg} />
+                  <img src={entry.dp} alt="avatar" style={styles.avatarImg} />
                 </div>
-                <span>{u.name}</span>
-                <span style={styles.onlineIndicator}></span>
+                <span>{entry.name}</span>
+                <span style={styles.onlineIndicator} />
               </div>
             ))
           )}
         </div>
-        
+
         <div style={styles.profileSection}>
           <div style={styles.avatarCircle}>
-             <img src={user.dp} alt="my-avatar" style={styles.avatarImg} />
+            <img src={user.dp} alt="my-avatar" style={styles.avatarImg} />
           </div>
-          <span>{user.name} (You)</span>
+          <div>
+            <div>{user.name}</div>
+            <div style={styles.profileSubtle}>You</div>
+          </div>
         </div>
       </div>
-      
+
       <div className={`glass-panel main-content ${!(selectedUser || selectedGroup) ? 'hidden-mobile' : ''}`} style={styles.mainContent}>
         {selectedGroup ? (
           <GroupChatWindow selectedGroup={selectedGroup} onBack={() => setSelectedGroup(null)} />
@@ -298,7 +337,13 @@ export default function Dashboard() {
         ) : (
           <div style={styles.emptyState}>
             <h3>Select a user or group to start chatting</h3>
-            <p>End-to-end local network communication</p>
+            <p style={{ marginTop: '8px' }}>
+              {runtimeInfo?.primaryUrl ? `Server ready at ${runtimeInfo.primaryUrl}` : 'Fetching server details...'}
+            </p>
+            <p style={{ marginTop: '8px', fontSize: '0.82rem', opacity: 0.85 }}>
+              Messages sync automatically across reconnects.
+            </p>
+            <ArrowRight size={28} style={{ marginTop: '18px', opacity: 0.65 }} />
           </div>
         )}
       </div>
@@ -325,13 +370,43 @@ const styles = {
     padding: '20px',
     borderBottom: '1px solid var(--glass-border)',
     background: 'rgba(255,255,255,0.02)',
+  },
+  headerTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '12px',
+  },
+  headerIcon: {
+    cursor: 'pointer',
+    opacity: 0.8,
+  },
+  brandEyebrow: {
+    margin: '0 0 6px 0',
+    fontSize: '0.72rem',
+    color: 'var(--primary-color)',
     textTransform: 'uppercase',
     letterSpacing: '2px',
+    fontWeight: '800',
+  },
+  connectionText: {
+    marginTop: '10px',
+    fontSize: '0.78rem',
+    color: 'var(--text-muted)',
   },
   userList: {
     flex: 1,
     padding: '15px',
     overflowY: 'auto',
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px',
   },
   sectionTitle: {
     fontSize: '0.75rem',
@@ -340,6 +415,10 @@ const styles = {
     color: 'var(--primary-color)',
     margin: 0,
     fontWeight: '800',
+  },
+  onlineCount: {
+    fontSize: '0.76rem',
+    color: 'var(--text-muted)',
   },
   smallBtn: {
     padding: '4px 8px',
@@ -354,12 +433,24 @@ const styles = {
     marginBottom: '16px',
     border: '1px solid rgba(0, 243, 255, 0.2)',
   },
+  checkboxRow: {
+    display: 'flex',
+    gap: '8px',
+    cursor: 'pointer',
+    marginBottom: '8px',
+    fontSize: '0.9rem',
+  },
   memberSelectScroll: {
     maxHeight: '100px',
     overflowY: 'auto',
     marginBottom: '8px',
     padding: '8px',
     backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  memberPrompt: {
+    fontSize: '0.8rem',
+    color: 'var(--text-muted)',
+    marginBottom: '6px',
   },
   divider: {
     borderColor: 'var(--glass-border)',
@@ -432,6 +523,10 @@ const styles = {
     backgroundColor: 'rgba(255,255,255,0.03)',
     gap: '12px',
   },
+  profileSubtle: {
+    color: 'var(--text-muted)',
+    fontSize: '0.78rem',
+  },
   mainContent: {
     flex: 1,
     display: 'flex',
@@ -445,13 +540,12 @@ const styles = {
     color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '2px',
+    maxWidth: '440px',
+    padding: '24px',
   },
   modalOverlay: {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    inset: 0,
     backgroundColor: 'rgba(0,0,0,0.8)',
     zIndex: 1000,
     display: 'flex',
@@ -473,5 +567,5 @@ const styles = {
     display: 'flex',
     gap: '16px',
     alignItems: 'flex-start',
-  }
+  },
 };

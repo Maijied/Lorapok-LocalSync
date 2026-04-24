@@ -1,23 +1,24 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { Server } from 'socket.io'
-import { setupSocket } from '../backend/socketLogic.js'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: 'socket-io-plugin',
-      configureServer(server) {
-        const io = new Server(server.httpServer, {
-          cors: { origin: '*' }
-        });
-        setupSocket(io);
-      }
-    }
-  ],
+  plugins: [react()],
   server: {
-    host: true, // Listen on all local IPs
-    strictPort: false, // Automatically find next available port
-  }
-})
+    host: true,
+    strictPort: false,
+    proxy: {
+      '/auth': {
+        target: 'http://127.0.0.1:4000',
+        changeOrigin: true,
+      },
+      '/meta': {
+        target: 'http://127.0.0.1:4000',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://127.0.0.1:4000',
+        ws: true,
+      },
+    },
+  },
+});

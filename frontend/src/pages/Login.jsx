@@ -9,21 +9,15 @@ const AVATARS = Array.from({ length: 60 }, (_, i) => {
 });
 
 export default function Login() {
-  const { register, unlock, isRegistered, isUnlocked, user } = useAuth();
+  const { register, unlock, isRegistered, isUnlocked, user, authError } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState(isRegistered ? 'unlock' : 'register');
+  const mode = isRegistered ? 'unlock' : 'register';
 
   useEffect(() => {
     if (isUnlocked) {
       navigate('/');
     }
   }, [isUnlocked, navigate]);
-
-  useEffect(() => {
-    if (isRegistered) {
-      setMode('unlock');
-    }
-  }, [isRegistered]);
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [selectedDp, setSelectedDp] = useState(AVATARS[0]);
@@ -34,7 +28,7 @@ export default function Login() {
     e.preventDefault();
     if (name.length < 2) return setError('Name too short');
     if (pin.length !== 4) return setError('PIN must be 4 digits');
-    await register(name, pin, selectedDp);
+    await register(name, pin, selectedDp, true);
   };
 
   const handleUnlock = async (e) => {
@@ -78,9 +72,9 @@ export default function Login() {
               </label>
             </div>
 
-            {error && <p style={styles.error}>{error}</p>}
+            {(error || authError) && <p style={styles.error}>{error || authError}</p>}
             <button type="submit" className="btn-primary" style={styles.button}>
-              Unlock Lorapok
+              Unlock Lorapok Communicator
             </button>
           </form>
         </div>
@@ -144,7 +138,7 @@ export default function Login() {
               />
             </div>
 
-            {error && <p style={styles.error}>{error}</p>}
+            {(error || authError) && <p style={styles.error}>{error || authError}</p>}
             
             <button type="submit" className="btn-primary" style={styles.button}>
               Create Account

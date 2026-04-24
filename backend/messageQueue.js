@@ -1,189 +1,71 @@
-const { v4: uuidv4 } = require('uuid');
-
 class MessageQueue {
   constructor(database) {
     this.db = database;
-    this.deliveryRetries = new Map(); // Track retry attempts per message
-    this.maxRetries = 3;
-    this.retryInterval = 5000; // 5 seconds between retries
   }
 
-  /**
-   * Queue a message for offline delivery
-   */
-  async queueForOfflineDelivery(messageData, recipientId) {
-    try {
-      // Create delivery status record
-      await this.db.saveDeliveryStatus(messageData.id, recipientId, 'pending');
-
-      // Add to queue
-      await this.db.queueMessage(messageData.id, recipientId);
-
-      console.log(`Message ${messageData.id} queued for user ${recipientId}`);
-      return true;
-    } catch (error) {
-      console.error('Error queuing message:', error);
-      return false;
-    }
+  async queueForOfflineDelivery(message, recipientId, eventType = 'private_message') {
+    await this.db.upsertDeliveryStatus(message.id, recipientId, 'sent');
+    await this.db.queueMessage(message.id, recipientId, eventType);
+    return true;
   }
 
-  /**
-   * Deliver queued messages when user comes online
-   */
-  async deliverQueuedMessages(userId, socket) {
-    try {
-      const queuedMessages = await this.db.getQueuedMessages(userId);
+  async deliverQueuedMessages(userId, socket, io, context = {}) {
+    const queuedMessages = await this.db.getQueuedMessages(userId);
+    const delivered = [];
 
-      if (queuedMessages.length === 0) {
-        console.log(`No queued messages for user ${userId}`);
-        return [];
-      }
-
-      const deliveredMessages = [];
-
-      for (const queuedMsg of queuedMessages) {
-        try {
-          const message = await this.db.getMessage(queuedMsg.message_id);
-
-          if (message) {
-            // Send to user
-            socket.emit('private_message', message);
-            socket.emit('message_delivered', {
-              messageId: message.id,
-              status: 'delivered',
-              timestamp: Date.now()
-            });
-
-            // Update delivery status
-            await this.db.updateDeliveryStatus(message.id, userId, 'delivered', Date.now());
-
-            // Remove from queue
-            await this.db.removeFromQueue(message.id, userId);
-
-            deliveredMessages.push(message);
-            console.log(`Delivered queued message ${message.id} to user ${userId}`);
-          }
-        } catch (error) {
-          console.error(`Error delivering queued message ${queuedMsg.message_id}:`, error);
-          await this.db.incrementQueueAttempts(queuedMsg.message_id, userId);
+    for (const queued of queuedMessages) {
+      try {
+        const message = await this.db.getMessage(queued.message_id);
+        if (!message) {
+          await this.db.removeFromQueue(queued.message_id, userId);
+          continue;
         }
-      }
 
-      return deliveredMessages;
-    } catch (error) {
-      console.error('Error delivering queued messages:', error);
-      return [];
+        const eventType = queued.event_type || (message.groupId ? 'group_message' : 'private_message');
+        socket.emit(eventType, message);
+
+        const updatedMessage = await this.db.markMessageDelivered(message.id, userId, Date.now());
+        await this.db.removeFromQueue(message.id, userId);
+
+        if (eventType === 'private_message' && updatedMessage?.from && context.userSocketMap?.has(updatedMessage.from)) {
+          io.to(context.userSocketMap.get(updatedMessage.from)).emit('message_delivered', {
+            messageId: updatedMessage.id,
+            status: 'delivered',
+            timestamp: updatedMessage.deliveredAt,
+          });
+        }
+
+        delivered.push(updatedMessage || message);
+      } catch (error) {
+        console.error(`Failed to deliver queued message ${queued.message_id}:`, error);
+        await this.db.incrementQueueAttempts(queued.message_id, userId);
+      }
     }
+
+    return delivered;
   }
 
-  /**
-   * Send message with retry logic
-   */
-  async sendMessageWithRetry(messageData, recipientId, recipientSocket, io) {
-    try {
-      if (recipientSocket) {
-        // User is online - send immediately
-        io.to(recipientSocket).emit('private_message', messageData);
-
-        // Update status to delivered
-        await this.db.updateMessageStatus(messageData.id, 'delivered');
-        await this.db.saveDeliveryStatus(messageData.id, recipientId, 'delivered');
-
-        return true;
-      } else {
-        // User is offline - queue for delivery
-        await this.queueForOfflineDelivery(messageData, recipientId);
-        return false;
-      }
-    } catch (error) {
-      console.error('Error sending message with retry:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Send group message with offline tracking
-   */
-  async sendGroupMessage(messageData, groupMembers, connectedUsers, io, db) {
-    const deliveryStatus = {
-      messageId: messageData.id,
-      delivered: [],
-      queued: []
-    };
+  async sendGroupMessage(message, groupMembers, onlineUserMap, io) {
+    const deliveredTo = [];
+    const queuedFor = [];
 
     for (const memberId of groupMembers) {
-      if (memberId === messageData.from) continue; // Skip sender
+      if (memberId === message.from) {
+        continue;
+      }
 
-      const memberConnection = connectedUsers.get(memberId);
-
-      if (memberConnection) {
-        // User is online
-        io.to(memberConnection).emit('group_message', messageData);
-        deliveryStatus.delivered.push(memberId);
-        await db.saveDeliveryStatus(messageData.id, memberId, 'delivered');
+      const recipientSocketId = onlineUserMap.get(memberId);
+      if (recipientSocketId) {
+        const deliveredMessage = await this.db.markMessageDelivered(message.id, memberId, Date.now());
+        io.to(recipientSocketId).emit('group_message', deliveredMessage || { ...message, status: 'delivered' });
+        deliveredTo.push(memberId);
       } else {
-        // User is offline - queue it
-        await this.queueForOfflineDelivery(messageData, memberId);
-        deliveryStatus.queued.push(memberId);
+        await this.queueForOfflineDelivery(message, memberId, 'group_message');
+        queuedFor.push(memberId);
       }
     }
 
-    return deliveryStatus;
-  }
-
-  /**
-   * Retry failed deliveries periodically
-   */
-  async retryFailedDeliveries(db, io, connectedUsers) {
-    try {
-      const failedMessages = await db.all(
-        `SELECT m.*, md.recipient_id FROM messages m
-         INNER JOIN message_delivery md ON m.id = md.message_id
-         WHERE md.status = 'pending' AND md.delivered_at IS NULL`
-      );
-
-      for (const msg of failedMessages) {
-        const recipientSocket = connectedUsers.get(msg.recipient_id);
-
-        if (recipientSocket) {
-          try {
-            io.to(recipientSocket).emit('private_message', {
-              id: msg.id,
-              from: msg.from_user_id,
-              to: msg.to_user_id,
-              text: msg.content,
-              timestamp: msg.timestamp,
-              status: msg.status
-            });
-
-            await db.updateDeliveryStatus(msg.id, msg.recipient_id, 'delivered', Date.now());
-            console.log(`Retry: Delivered message ${msg.id} to user ${msg.recipient_id}`);
-          } catch (error) {
-            console.error(`Retry failed for message ${msg.id}:`, error);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error in retryFailedDeliveries:', error);
-    }
-  }
-
-  /**
-   * Clean up old queued messages (older than 30 days)
-   */
-  async cleanupOldMessages(db) {
-    try {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-      await db.run(
-        'DELETE FROM message_queue WHERE queued_at < ?',
-        [thirtyDaysAgo]
-      );
-
-      console.log('Cleaned up old queued messages');
-    } catch (error) {
-      console.error('Error cleaning up old messages:', error);
-    }
+    return { deliveredTo, queuedFor };
   }
 }
 

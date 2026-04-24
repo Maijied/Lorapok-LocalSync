@@ -1,197 +1,376 @@
-const setupSocket = (io, database, messageQueue) => {
-  // Store connected users (socketId -> userData)
-  const connectedUsers = new Map(); // socketId -> userData
-  const userSocketMap = new Map(); // userId -> socketId (for quick lookup)
+const normalizePrivateMessage = (database, senderId, payload) => ({
+  id: payload.id,
+  chatId: payload.chatId || database.createPrivateChatId(senderId, payload.to),
+  from: senderId,
+  fromName: payload.fromName || null,
+  to: payload.to,
+  text: payload.text || '',
+  type: payload.type || 'text',
+  fileData: payload.fileData || null,
+  timestamp: Number(payload.timestamp || Date.now()),
+  status: payload.status || 'pending',
+});
 
-  // Store public groups in memory
-  const publicGroups = new Map();
+const normalizeGroupMessage = (payload, senderId) => ({
+  id: payload.id,
+  chatId: payload.chatId || payload.groupId,
+  from: senderId,
+  fromName: payload.fromName || null,
+  to: null,
+  groupId: payload.groupId,
+  text: payload.text || '',
+  type: payload.type || 'text',
+  fileData: payload.fileData || null,
+  timestamp: Number(payload.timestamp || Date.now()),
+  status: payload.status || 'pending',
+});
 
-  io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id);
+const generateGroupKey = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
-    // User registers their presence
-    socket.on('register', async (userData) => {
-      // userData now includes { id, name, dp }
-      connectedUsers.set(socket.id, userData);
-      userSocketMap.set(userData.id, socket.id);
+const setupSocket = (io, database, messageQueue, tokenManager) => {
+  const connectedUsers = new Map();
+  const userSocketMap = new Map();
+  const typingBySocket = new Map();
+  const activeCalls = new Set();
 
-      // Save/update user in database
-      if (database) {
-        try {
-          // For now, store a hash of the PIN (in real app, would be hashed on client)
-          await database.saveUser(userData.id, userData.name, userData.pin || 'default', userData.dp);
-          await database.updateLastSeen(userData.id);
-        } catch (error) {
-          console.error('Error saving user to database:', error);
-        }
+  io.use(async (socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (!token) {
+      return next(new Error('AUTH_REQUIRED'));
+    }
+
+    const decoded = tokenManager.verifyAccessToken(token);
+    if (!decoded?.userId) {
+      return next(new Error('AUTH_INVALID'));
+    }
+
+    try {
+      const user = await database.getUser(decoded.userId);
+      if (!user) {
+        return next(new Error('AUTH_USER_MISSING'));
       }
 
-      // Deliver queued messages to this user
-      if (messageQueue && database) {
-        try {
-          const queuedMessages = await messageQueue.deliverQueuedMessages(userData.id, socket);
-          if (queuedMessages.length > 0) {
-            console.log(`Delivered ${queuedMessages.length} queued messages to ${userData.name}`);
-          }
-        } catch (error) {
-          console.error('Error delivering queued messages:', error);
-        }
-      }
+      socket.user = database.sanitizeUser(user);
+      return next();
+    } catch (error) {
+      console.error('Socket auth failed:', error);
+      return next(new Error('AUTH_FAILED'));
+    }
+  });
 
-      io.emit('users_update', Array.from(connectedUsers.values()));
-      socket.emit('public_groups_update', Array.from(publicGroups.values()));
-      console.log('User registered:', userData.name);
-    });
+  const emitUsersUpdate = () => {
+    io.emit('users_update', Array.from(connectedUsers.values()));
+  };
 
-    // Handle private messages
-    socket.on('private_message', async (data) => {
-      // Save message to database
-      if (database) {
-        try {
-          await database.saveMessage({
-            id: data.id,
-            from: data.from,
-            to: data.to,
-            groupId: null,
-            content: data.text,
-            encrypted: data.encrypted || false,
-            status: 'sent',
-            timestamp: data.timestamp
-          });
-        } catch (error) {
-          console.error('Error saving message to database:', error);
-        }
-      }
+  const emitPublicGroupsUpdate = async () => {
+    const publicGroups = await database.getPublicGroups();
+    io.emit('public_groups_update', publicGroups);
+  };
 
-      // Find recipient
-      const recipientSocketId = userSocketMap.get(data.to);
+  const emitStoppedTyping = (socket) => {
+    const typing = typingBySocket.get(socket.id);
+    if (!typing) {
+      return;
+    }
 
+    if (typing.to) {
+      const recipientSocketId = userSocketMap.get(typing.to);
       if (recipientSocketId) {
-        // Recipient is online - send immediately
-        io.to(recipientSocketId).emit('private_message', data);
-
-        // Mark as delivered in database
-        if (database) {
-          try {
-            await database.updateMessageStatus(data.id, 'delivered');
-            await database.saveDeliveryStatus(data.id, data.to, 'delivered');
-          } catch (error) {
-            console.error('Error updating delivery status:', error);
-          }
-        }
-      } else {
-        // Recipient is offline - queue for delivery
-        if (messageQueue) {
-          await messageQueue.queueForOfflineDelivery(data, data.to);
-        }
+        io.to(recipientSocketId).emit('user_stopped_typing', {
+          from: socket.user.id,
+          to: typing.to,
+        });
       }
+    }
+
+    if (typing.groupId) {
+      socket.to(typing.groupId).emit('user_stopped_typing', {
+        from: socket.user.id,
+        groupId: typing.groupId,
+      });
+    }
+
+    typingBySocket.delete(socket.id);
+  };
+
+  io.on('connection', async (socket) => {
+    const user = socket.user;
+    connectedUsers.set(socket.id, user);
+    userSocketMap.set(user.id, socket.id);
+
+    await database.updateLastSeen(user.id);
+
+    const groups = await database.getGroupsForUser(user.id);
+    groups.forEach((group) => socket.join(group.id));
+
+    socket.emit('session_ready', {
+      user,
+      groups,
+      publicGroups: await database.getPublicGroups(user.id),
     });
 
-    // WebRTC Signaling
-    socket.on('offer', (data) => {
-      const recipientSocket = Array.from(connectedUsers.entries()).find(([id, user]) => user.id === data.to);
-      if (recipientSocket) {
-        io.to(recipientSocket[0]).emit('offer', data);
-      }
-    });
+    emitUsersUpdate();
+    await emitPublicGroupsUpdate();
+    await messageQueue.deliverQueuedMessages(user.id, socket, io, { userSocketMap });
 
-    socket.on('answer', (data) => {
-      const recipientSocket = Array.from(connectedUsers.entries()).find(([id, user]) => user.id === data.to);
-      if (recipientSocket) {
-        io.to(recipientSocket[0]).emit('answer', data);
+    socket.on('sync_private_history', async (payload = {}) => {
+      if (!payload.withUserId) {
+        return;
       }
-    });
 
-    socket.on('ice-candidate', (data) => {
-      const recipientSocket = Array.from(connectedUsers.entries()).find(([id, user]) => user.id === data.to);
-      if (recipientSocket) {
-        io.to(recipientSocket[0]).emit('ice-candidate', data);
-      }
-    });
-    // Group Chat Signaling
-    socket.on('create_group', (groupData) => {
-      // Generate a 6-char secret key if not present
-      const secretKey = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const enrichedGroup = { ...groupData, secretKey };
-      
-      socket.join(enrichedGroup.id);
-      
-      if (enrichedGroup.isPublic) {
-        publicGroups.set(enrichedGroup.id, enrichedGroup);
-        io.emit('public_groups_update', Array.from(publicGroups.values()));
-      }
-      
-      // Notify all initial members to join
-      enrichedGroup.members.forEach(memberId => {
-        const memberSocket = Array.from(connectedUsers.entries()).find(([id, user]) => user.id === memberId);
-        if (memberSocket) {
-          io.to(memberSocket[0]).emit('group_created', enrichedGroup);
-        }
+      const messages = await database.getPrivateMessages(user.id, payload.withUserId);
+      socket.emit('sync_private_history', {
+        withUserId: payload.withUserId,
+        chatId: database.createPrivateChatId(user.id, payload.withUserId),
+        messages,
       });
     });
 
-    socket.on('join_group_with_key', (secretKey) => {
-      const group = Array.from(publicGroups.values()).find(g => g.secretKey === secretKey);
-      if (group) {
-        socket.join(group.id);
-        socket.emit('group_created', group);
+    socket.on('sync_group_history', async (payload = {}) => {
+      if (!payload.groupId) {
+        return;
+      }
+
+      const group = await database.getGroup(payload.groupId);
+      if (!group || !group.members.includes(user.id)) {
+        return;
+      }
+
+      socket.join(group.id);
+      const messages = await database.getGroupMessages(payload.groupId);
+      socket.emit('sync_group_history', {
+        groupId: payload.groupId,
+        messages,
+      });
+    });
+
+    socket.on('private_message', async (payload) => {
+      if (!payload?.id || !payload?.to) {
+        return;
+      }
+
+      const message = normalizePrivateMessage(database, user.id, { ...payload, fromName: user.name });
+      await database.saveMessage({ ...message, status: 'sent' });
+      await database.upsertDeliveryStatus(message.id, message.to, 'sent');
+
+      socket.emit('message_delivered', {
+        messageId: message.id,
+        status: 'sent',
+        timestamp: message.timestamp,
+      });
+
+      const recipientSocketId = userSocketMap.get(message.to);
+      if (recipientSocketId) {
+        const deliveredMessage = await database.markMessageDelivered(message.id, message.to, Date.now());
+        io.to(recipientSocketId).emit('private_message', deliveredMessage || { ...message, status: 'delivered' });
+        socket.emit('message_delivered', {
+          messageId: message.id,
+          status: 'delivered',
+          timestamp: deliveredMessage.deliveredAt,
+        });
       } else {
-        socket.emit('error', 'Invalid Group Key');
+        await messageQueue.queueForOfflineDelivery(message, message.to, 'private_message');
       }
     });
 
-    socket.on('send_group_invite', (data) => {
-      // data: { toUserId, group }
-      const recipientSocket = Array.from(connectedUsers.entries()).find(([id, user]) => user.id === data.toUserId);
-      if (recipientSocket) {
-        io.to(recipientSocket[0]).emit('group_invite', {
-          from: connectedUsers.get(socket.id),
-          group: data.group
+    socket.on('message_read', async (payload) => {
+      if (!payload?.messageId || !payload?.from) {
+        return;
+      }
+
+      const updated = await database.markMessageSeen(payload.messageId, user.id, Date.now());
+      const senderSocketId = userSocketMap.get(payload.from);
+
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('message_read', {
+          messageId: payload.messageId,
+          status: 'seen',
+          timestamp: updated?.seenAt || Date.now(),
         });
       }
     });
 
-    socket.on('join_group', (groupId) => {
-      socket.join(groupId);
-    });
+    socket.on('user_typing', (payload = {}) => {
+      const event = {
+        from: user.id,
+        fromName: user.name,
+        to: payload.to || null,
+        groupId: payload.groupId || null,
+      };
 
-    socket.on('join_public_group', (data) => {
-      const group = publicGroups.get(data.groupId);
-      if (group && !group.members.includes(data.user.id)) {
-        group.members.push(data.user.id);
-        publicGroups.set(data.groupId, group);
-        
-        socket.join(data.groupId);
-        socket.emit('group_created', group); // Tell the user they joined
-        io.emit('public_groups_update', Array.from(publicGroups.values()));
-      }
-    });
+      typingBySocket.set(socket.id, event);
 
-    socket.on('group_message', (data) => {
-      socket.to(data.groupId).emit('group_message', data);
-    });
-
-    socket.on('disconnect', async () => {
-      const userData = connectedUsers.get(socket.id);
-      console.log('User disconnected:', socket.id);
-
-      // Update last seen in database
-      if (userData && database) {
-        try {
-          await database.updateLastSeen(userData.id);
-        } catch (error) {
-          console.error('Error updating last seen:', error);
+      if (payload.to) {
+        const recipientSocketId = userSocketMap.get(payload.to);
+        if (recipientSocketId) {
+          io.to(recipientSocketId).emit('user_typing', event);
         }
       }
 
-      connectedUsers.delete(socket.id);
-      if (userData) {
-        userSocketMap.delete(userData.id);
+      if (payload.groupId) {
+        socket.to(payload.groupId).emit('user_typing', event);
       }
-      io.emit('users_update', Array.from(connectedUsers.values()));
+    });
+
+    socket.on('user_stopped_typing', () => {
+      emitStoppedTyping(socket);
+    });
+
+    socket.on('create_group', async (payload) => {
+      const group = await database.saveGroup({
+        id: payload.id,
+        name: payload.name,
+        createdBy: user.id,
+        isPublic: Boolean(payload.isPublic),
+        secretKey: payload.secretKey || generateGroupKey(),
+        members: Array.from(new Set([user.id, ...(payload.members || [])])),
+      });
+
+      for (const memberId of group.members) {
+        const memberSocketId = userSocketMap.get(memberId);
+        if (memberSocketId) {
+          io.to(memberSocketId).emit('group_created', group);
+          io.sockets.sockets.get(memberSocketId)?.join(group.id);
+        }
+      }
+
+      await emitPublicGroupsUpdate();
+    });
+
+    socket.on('join_group_with_key', async (secretKey) => {
+      const group = await database.getGroupBySecretKey((secretKey || '').toUpperCase());
+      if (!group) {
+        socket.emit('error', 'Invalid group key');
+        return;
+      }
+
+      await database.addGroupMember(group.id, user.id);
+      const updatedGroup = await database.getGroup(group.id);
+      socket.join(updatedGroup.id);
+      socket.emit('group_created', updatedGroup);
+      await emitPublicGroupsUpdate();
+    });
+
+    socket.on('join_group', async (groupId) => {
+      const group = await database.getGroup(groupId);
+      if (!group || !group.members.includes(user.id)) {
+        return;
+      }
+
+      socket.join(groupId);
+      socket.emit('group_created', group);
+    });
+
+    socket.on('join_public_group', async (payload = {}) => {
+      const group = await database.getGroup(payload.groupId);
+      if (!group || !group.isPublic) {
+        return;
+      }
+
+      await database.addGroupMember(group.id, user.id);
+      const updatedGroup = await database.getGroup(group.id);
+      socket.join(group.id);
+      socket.emit('group_created', updatedGroup);
+      await emitPublicGroupsUpdate();
+    });
+
+    socket.on('send_group_invite', (payload) => {
+      const recipientSocketId = userSocketMap.get(payload?.toUserId);
+      if (!recipientSocketId) {
+        return;
+      }
+
+      io.to(recipientSocketId).emit('group_invite', {
+        from: user,
+        group: payload.group,
+      });
+    });
+
+    socket.on('group_message', async (payload) => {
+      if (!payload?.id || !payload?.groupId) {
+        return;
+      }
+
+      const group = await database.getGroup(payload.groupId);
+      if (!group || !group.members.includes(user.id)) {
+        return;
+      }
+
+      const message = normalizeGroupMessage({ ...payload, fromName: user.name }, user.id);
+      await database.saveMessage({ ...message, status: 'sent' });
+
+      socket.emit('message_delivered', {
+        messageId: message.id,
+        status: 'sent',
+        timestamp: message.timestamp,
+      });
+
+      const delivery = await messageQueue.sendGroupMessage(message, group.members, userSocketMap, io);
+      if (delivery.deliveredTo.length > 0) {
+        const updated = await database.updateMessageStatus(message.id, 'delivered', { deliveredAt: Date.now() });
+        socket.emit('message_delivered', {
+          messageId: message.id,
+          status: 'delivered',
+          timestamp: updated?.deliveredAt || Date.now(),
+        });
+      }
+    });
+
+    socket.on('offer', (payload) => {
+      const recipientSocketId = userSocketMap.get(payload?.to);
+      if (!recipientSocketId) {
+        socket.emit('call_unavailable', { to: payload?.to });
+        return;
+      }
+
+      if (activeCalls.has(user.id) || activeCalls.has(payload.to)) {
+        socket.emit('call_busy', { to: payload.to });
+        return;
+      }
+
+      activeCalls.add(user.id);
+      activeCalls.add(payload.to);
+      io.to(recipientSocketId).emit('offer', { ...payload, fromUser: user });
+    });
+
+    socket.on('answer', (payload) => {
+      const recipientSocketId = userSocketMap.get(payload?.to);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('answer', payload);
+      }
+    });
+
+    socket.on('ice-candidate', (payload) => {
+      const recipientSocketId = userSocketMap.get(payload?.to);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('ice-candidate', payload);
+      }
+    });
+
+    socket.on('call_end', (payload) => {
+      activeCalls.delete(user.id);
+      if (payload?.to) {
+        activeCalls.delete(payload.to);
+        const recipientSocketId = userSocketMap.get(payload.to);
+        if (recipientSocketId) {
+          io.to(recipientSocketId).emit('call_ended', { from: user.id });
+        }
+      }
+    });
+
+    socket.on('disconnect', async () => {
+      emitStoppedTyping(socket);
+      activeCalls.delete(user.id);
+
+      connectedUsers.delete(socket.id);
+      if (userSocketMap.get(user.id) === socket.id) {
+        userSocketMap.delete(user.id);
+      }
+
+      await database.updateLastSeen(user.id);
+      emitUsersUpdate();
     });
   });
 };
 
 module.exports = { setupSocket };
-

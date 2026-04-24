@@ -41,6 +41,15 @@ export default function CallOverlay() {
     );
   }
 
+  const statusLabel =
+    callState.status === 'connected'
+      ? 'Connected'
+      : callState.status === 'busy'
+        ? 'User is busy'
+        : callState.status === 'unavailable'
+          ? 'User is unavailable'
+          : 'Calling...';
+
   return (
     <div style={styles.overlay}>
       <div style={styles.callContainer}>
@@ -61,7 +70,7 @@ export default function CallOverlay() {
           <div style={styles.voiceCallContainer}>
             <div style={styles.avatarHuge}>{callState.otherUser.name.charAt(0).toUpperCase()}</div>
             <h2>{callState.otherUser.name}</h2>
-            <p>{callState.status === 'connected' ? '00:00' : 'Calling...'}</p>
+            <p>{statusLabel}</p>
             {/* hidden audio elements to play stream */}
             <audio ref={remoteVideoRef} autoPlay />
             <audio ref={localVideoRef} autoPlay muted />
