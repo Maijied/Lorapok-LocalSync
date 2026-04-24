@@ -53,31 +53,67 @@
 
 ---
 
-## 📥 Installation
+## 📥 Installation & Usage
 
-### For Users
-Download the latest installers for your platform from the [Releases Page](https://github.com/Maijied/Lorapok-LocalSync/releases).
+### 1. Desktop Users (Windows / Linux / macOS)
+With the new **Decentralized Hub Architecture**, there is zero configuration required:
+1. Download and install the app from the [Releases Page](https://github.com/Maijied/Lorapok-LocalSync/releases).
+2. **Just Open the App**: It will automatically search your local network for an active Hub.
+3. **Auto-Hosting**: If it doesn't find a Hub, your PC will seamlessly become the Hub in the background.
 
-### For Developers
+### 2. Web Users (Browser)
+If a PC on your network is running the Lorapok Desktop App:
+1. Find that PC's local IP address (e.g., `192.168.1.15`).
+2. Open your browser and go to `http://[THAT-IP]:5173`.
+3. The web app will automatically connect to the Hub without needing any extra setup.
+
+### 3. Mobile Users (Android)
+Ensure your phone is on the same Wi-Fi router as your PC:
+1. Install the APK from the [Releases Page](https://github.com/Maijied/Lorapok-LocalSync/releases).
+2. The app will automatically connect to the Desktop Hub.
+
+---
+
+## 🗑️ How to Completely Remove from Ubuntu
+
+If you need to uninstall Lorapok LocalSync and completely wipe your data on Ubuntu:
+
+### 1. Remove the Software
+If you installed the `.deb` package:
+```bash
+sudo apt remove --purge lorapok-localsync
+sudo apt autoremove
+```
+
+If you used the **AppImage**:
+```bash
+rm ~/Downloads/Lorapok-LocalSync*.AppImage
+rm ~/.local/share/applications/lorapok*.desktop
+```
+
+### 2. Wipe Local Data & History (Important)
+To remove all your chat history, secret keys, and preferences:
+```bash
+rm -rf ~/.config/"Lorapok LocalSync"
+rm -rf ~/.local/share/"Lorapok LocalSync"
+```
+
+---
+
+## 💻 For Developers
+
 1. **Clone & Initialize**:
    ```bash
    git clone https://github.com/Maijied/Lorapok-LocalSync.git
    cd Lorapok-LocalSync
    ```
 
-2. **Start the Backend Hub**:
+2. **Start the Development Environment**:
+   *The desktop app will automatically fork the backend.*
    ```bash
-   cd backend
+   cd frontend
    npm install
-   npm start
-   ```
-
-3. **Launch the Frontend Experience**:
-   ```bash
-   cd ../frontend
-   npm install
-   npm run dev # For Web
-   npm run electron:start # For Desktop
+   npm run electron:dev
    ```
 
 ---
