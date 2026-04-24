@@ -2,6 +2,12 @@
   "name": "frontend",
   "private": true,
   "version": "0.0.0",
+  "description": "Secure encrypted communication for your local network",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Maijied/Lorapok-LocalSync.git"
+  },
+  "author": "Maijied",
   "homepage": "https://Maijied.github.io/Lorapok-LocalSync",
   "type": "module",
   "scripts": {

@@ -66,6 +66,10 @@ jobs:
           cd frontend
           npm install
           npm run build
+          # Add android platform if missing
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
           cd android
           chmod +x gradlew
