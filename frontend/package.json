@@ -2,7 +2,7 @@
   "name": "lorapok-localsync",
   "productName": "Lorapok LocalSync",
   "private": true,
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "Secure encrypted communication for your local network",
   "repository": {
     "type": "git",
