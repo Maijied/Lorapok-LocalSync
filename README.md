@@ -35,9 +35,9 @@
 
 ## 💻 Supported Platforms
 
-| Windows (NSIS) | Linux (.deb) | Web App (PWA) |
-| :---: | :---: | :---: |
-| ✅ | ✅ | ✅ |
+| Windows (NSIS) | Linux (.deb) | macOS (dmg) | Android (apk) | Web App (PWA) |
+| :---: | :---: | :---: | :---: | :---: |
+| ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
