@@ -124,20 +124,23 @@ jobs:
       - name: Inject Direct Download Links
         run: |
           VERSION=$(node -p "require('./frontend/package.json').version")
-          echo "Building version: $VERSION"
           TAG_NAME="${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}"
-          echo "Target Release Tag: $TAG_NAME"
           BASE_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME"
-          # Replace placeholders using @ as delimiter for safety
-          sed -i "s@\[\[VERSION\]\]@$VERSION@g" index.html
-          sed -i "s@__WIN_LINK__@$BASE_URL/Lorapok-LocalSync-Setup-$VERSION.exe@g" index.html
-          sed -i "s@__MAC_LINK__@$BASE_URL/Lorapok-LocalSync-$VERSION.dmg@g" index.html
-          sed -i "s@__LINUX_LINK__@$BASE_URL/Lorapok-LocalSync-$VERSION.AppImage@g" index.html
-          sed -i "s@__APK_LINK__@$BASE_URL/app-debug.apk@g" index.html
           
-          # Debug: show injected links (optional)
-          grep -E "WIN_LINK|MAC_LINK|LINUX_LINK|APK_LINK|VERSION" index.html || echo "Placeholders replaced."
-          cp index.html style.css logo.svg frontend/dist/
+          # Use the root files as the landing page
+          # Copy them to a clean folder for deployment
+          mkdir -p deploy_site
+          cp index.html style.css logo.svg deploy_site/
+          
+          # Perform replacements in the deploy_site folder
+          sed -i "s@\[\[VERSION\]\]@$VERSION@g" deploy_site/index.html
+          sed -i "s@__WIN_LINK__@$BASE_URL/Lorapok-LocalSync-Setup-$VERSION.exe@g" deploy_site/index.html
+          sed -i "s@__MAC_LINK__@$BASE_URL/Lorapok-LocalSync-$VERSION.dmg@g" deploy_site/index.html
+          sed -i "s@__LINUX_LINK__@$BASE_URL/Lorapok-LocalSync-$VERSION.AppImage@g" deploy_site/index.html
+          sed -i "s@__APK_LINK__@$BASE_URL/app-debug.apk@g" deploy_site/index.html
+          
+          # Debug: Verify the file was changed
+          grep "github.com" deploy_site/index.html || echo "ERROR: Links not found in index.html"
 
       - name: Create or Update Release
         uses: softprops/action-gh-release@v1
@@ -154,9 +157,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: frontend/dist
-          publish_branch: gh-pages
+          path: deploy_site/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
